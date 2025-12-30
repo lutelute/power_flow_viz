@@ -1,0 +1,2092 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>潮流計算アルゴリズム比較 - MATPOWER準拠</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-surface: #1a1a25;
+            --bg-hover: #252535;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-orange: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-purple: #8b5cf6;
+            --accent-cyan: #06b6d4;
+            --accent-pink: #ec4899;
+            --accent-yellow: #eab308;
+            --accent-teal: #14b8a6;
+            --accent-indigo: #6366f1;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border: #2d2d3d;
+            --success: #22c55e;
+            --warning: #eab308;
+            --error: #ef4444;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Noto Sans JP', 'JetBrains Mono', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .header {
+            background: linear-gradient(180deg, var(--bg-card) 0%, var(--bg-dark) 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 15px 30px;
+        }
+
+        .header-content {
+            max-width: 1900px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+        }
+
+        .logo-text h1 { font-size: 1.2rem; font-weight: 700; }
+        .logo-text span { font-size: 0.75rem; color: var(--text-secondary); }
+
+        .matpower-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--bg-surface);
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            color: var(--accent-cyan);
+            border: 1px solid var(--border);
+        }
+
+        .container {
+            max-width: 1900px;
+            margin: 0 auto;
+            padding: 15px 20px;
+        }
+
+        .control-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .control-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: flex-end;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .control-group label {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .control-group select,
+        .control-group input[type="number"] {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            min-width: 150px;
+        }
+
+        .algo-select-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            max-width: 600px;
+        }
+
+        .algo-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            background: var(--bg-surface);
+            padding: 6px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            border: 1px solid var(--border);
+            transition: all 0.2s;
+        }
+
+        .algo-checkbox:hover {
+            border-color: var(--accent-cyan);
+        }
+
+        .algo-checkbox.selected {
+            border-color: var(--accent-cyan);
+            background: rgba(6, 182, 212, 0.1);
+        }
+
+        .algo-checkbox input { display: none; }
+
+        .algo-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .btn-group { display: flex; gap: 8px; }
+
+        .btn {
+            font-family: 'JetBrains Mono', monospace;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary { background: var(--accent-cyan); color: var(--bg-dark); }
+        .btn-warning { background: var(--accent-orange); color: var(--bg-dark); }
+        .btn-secondary { background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border); }
+        .btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Main Layout */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 280px 1fr 320px;
+            gap: 15px;
+        }
+
+        @media (max-width: 1400px) {
+            .main-layout { grid-template-columns: 1fr; }
+        }
+
+        /* Flow Panel */
+        .flow-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 15px;
+            height: fit-content;
+        }
+
+        .flow-panel h3 {
+            font-size: 0.85rem;
+            margin-bottom: 12px;
+            color: var(--accent-cyan);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .flow-diagram {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .flow-step {
+            background: var(--bg-surface);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 0.75rem;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .flow-step.active {
+            border-color: var(--accent-cyan);
+            background: rgba(6, 182, 212, 0.1);
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.3);
+        }
+
+        .flow-step.completed {
+            border-color: var(--accent-green);
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .flow-step-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+
+        .flow-step-title {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .flow-step-icon {
+            font-size: 1rem;
+        }
+
+        .flow-step-desc {
+            color: var(--text-muted);
+            font-size: 0.7rem;
+        }
+
+        .flow-arrow {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 1.2rem;
+        }
+
+        .flow-loop {
+            border: 2px dashed var(--accent-orange);
+            border-radius: 10px;
+            padding: 10px;
+            margin: 5px 0;
+        }
+
+        .flow-loop-label {
+            font-size: 0.7rem;
+            color: var(--accent-orange);
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        /* Center Panel */
+        .center-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .viz-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .viz-header {
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--bg-surface);
+        }
+
+        .viz-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .viz-body {
+            padding: 12px;
+            height: 320px;
+            position: relative;
+        }
+
+        .viz-body canvas { width: 100%; height: 100%; }
+
+        .compare-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        /* Results Panel */
+        .results-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 15px;
+            height: fit-content;
+            max-height: calc(100vh - 180px);
+            overflow-y: auto;
+        }
+
+        .results-panel h3 {
+            font-size: 0.85rem;
+            margin-bottom: 12px;
+            color: var(--accent-cyan);
+        }
+
+        .algo-result {
+            background: var(--bg-surface);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-left: 3px solid var(--border);
+        }
+
+        .algo-result.converged { border-left-color: var(--accent-green); }
+        .algo-result.running { border-left-color: var(--accent-orange); }
+        .algo-result.diverged { border-left-color: var(--accent-red); }
+
+        .algo-result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .algo-result-name {
+            font-weight: 600;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .algo-result-status {
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        .algo-result-status.converged { background: rgba(16, 185, 129, 0.2); color: var(--accent-green); }
+        .algo-result-status.running { background: rgba(245, 158, 11, 0.2); color: var(--accent-orange); }
+        .algo-result-status.waiting { background: rgba(100, 116, 139, 0.2); color: var(--text-muted); }
+        .algo-result-status.diverged { background: rgba(239, 68, 68, 0.2); color: var(--accent-red); }
+
+        .algo-result-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            font-size: 0.7rem;
+        }
+
+        .algo-stat {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .algo-stat-label { color: var(--text-muted); }
+        .algo-stat-value { font-family: 'JetBrains Mono', monospace; color: var(--text-primary); }
+
+        /* Comparison Table */
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.75rem;
+            margin-top: 15px;
+        }
+
+        .comparison-table th,
+        .comparison-table td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .comparison-table th {
+            background: var(--bg-surface);
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .comparison-table tr:hover { background: var(--bg-hover); }
+
+        .rank-1 { color: var(--accent-green); font-weight: 600; }
+        .rank-2 { color: var(--accent-cyan); }
+        .rank-3 { color: var(--accent-orange); }
+
+        /* Legend */
+        .legend {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            font-size: 0.7rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            color: var(--text-secondary);
+        }
+
+        .legend-line {
+            width: 20px;
+            height: 3px;
+            border-radius: 2px;
+        }
+
+        /* Reference */
+        .reference-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .reference-section h3 {
+            font-size: 0.85rem;
+            margin-bottom: 10px;
+            color: var(--accent-cyan);
+        }
+
+        .algo-info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+        }
+
+        .algo-info-card {
+            background: var(--bg-surface);
+            border-radius: 8px;
+            padding: 12px;
+            border-left: 3px solid var(--accent-purple);
+        }
+
+        .algo-info-card h4 {
+            font-size: 0.8rem;
+            color: var(--accent-orange);
+            margin-bottom: 6px;
+        }
+
+        .algo-info-card p {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .algo-info-card code {
+            background: var(--bg-dark);
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--accent-cyan);
+        }
+
+        /* Animation */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .running-animation {
+            animation: pulse 1s infinite;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <div class="logo-icon">⚡</div>
+                <div class="logo-text">
+                    <h1>Power Flow Algorithm Comparison</h1>
+                    <span>潮流計算アルゴリズム比較ツール</span>
+                </div>
+            </div>
+            <div class="matpower-badge">
+                <span>📚</span>
+                <span>MATPOWER 7.1 準拠 | IEEE Test Cases</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Control Panel -->
+        <div class="control-panel">
+            <div class="control-row">
+                <div class="control-group">
+                    <label>テストケース</label>
+                    <select id="caseSelect">
+                        <option value="case5">5-bus Example</option>
+                        <option value="case9" selected>IEEE 9-bus (WSCC)</option>
+                        <option value="case14">IEEE 14-bus</option>
+                        <option value="case30">IEEE 30-bus</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>収束判定 (p.u.)</label>
+                    <select id="tolSelect">
+                        <option value="1e-4">10⁻⁴</option>
+                        <option value="1e-6" selected>10⁻⁶</option>
+                        <option value="1e-8">10⁻⁸</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>最大反復</label>
+                    <input type="number" id="maxIterInput" value="50" min="5" max="500" style="width: 80px;">
+                </div>
+                <div class="control-group">
+                    <label>速度</label>
+                    <select id="speedSelect" style="width: 80px;">
+                        <option value="1">1x</option>
+                        <option value="2" selected>2x</option>
+                        <option value="5">5x</option>
+                        <option value="0">瞬時</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>比較アルゴリズム（複数選択可）</label>
+                    <div class="algo-select-group" id="algoCheckboxes"></div>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-primary" id="runBtn">▶ 同時実行</button>
+                    <button class="btn btn-warning" id="stepBtn">⏭ ステップ</button>
+                    <button class="btn btn-secondary" id="resetBtn">↺ リセット</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Layout -->
+        <div class="main-layout">
+            <!-- Flow Panel -->
+            <div class="flow-panel">
+                <h3>🔄 計算フロー</h3>
+                <div class="flow-diagram" id="flowDiagram">
+                    <div class="flow-step" data-step="init">
+                        <div class="flow-step-header">
+                            <span class="flow-step-title">1. 初期化</span>
+                            <span class="flow-step-icon">📋</span>
+                        </div>
+                        <div class="flow-step-desc">V=1.0, δ=0, Ybus構築</div>
+                    </div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-loop">
+                        <div class="flow-loop-label">🔁 反復ループ (k = 0, 1, 2, ...)</div>
+                        <div class="flow-step" data-step="mismatch">
+                            <div class="flow-step-header">
+                                <span class="flow-step-title">2. ミスマッチ計算</span>
+                                <span class="flow-step-icon">📊</span>
+                            </div>
+                            <div class="flow-step-desc">ΔP, ΔQ = P_spec - P_calc</div>
+                        </div>
+                        <div class="flow-arrow">↓</div>
+                        <div class="flow-step" data-step="check">
+                            <div class="flow-step-header">
+                                <span class="flow-step-title">3. 収束判定</span>
+                                <span class="flow-step-icon">✓</span>
+                            </div>
+                            <div class="flow-step-desc">max(|ΔP|,|ΔQ|) < ε ?</div>
+                        </div>
+                        <div class="flow-arrow">↓ No</div>
+                        <div class="flow-step" data-step="jacobian">
+                            <div class="flow-step-header">
+                                <span class="flow-step-title">4. 行列構築</span>
+                                <span class="flow-step-icon">🧮</span>
+                            </div>
+                            <div class="flow-step-desc">J, B', B'' など</div>
+                        </div>
+                        <div class="flow-arrow">↓</div>
+                        <div class="flow-step" data-step="solve">
+                            <div class="flow-step-header">
+                                <span class="flow-step-title">5. 連立方程式</span>
+                                <span class="flow-step-icon">🔢</span>
+                            </div>
+                            <div class="flow-step-desc">Δx = solve(A, b)</div>
+                        </div>
+                        <div class="flow-arrow">↓</div>
+                        <div class="flow-step" data-step="update">
+                            <div class="flow-step-header">
+                                <span class="flow-step-title">6. 状態更新</span>
+                                <span class="flow-step-icon">🔄</span>
+                            </div>
+                            <div class="flow-step-desc">V, δ ← V + ΔV, δ + Δδ</div>
+                        </div>
+                    </div>
+                    <div class="flow-arrow">↓ Yes</div>
+                    <div class="flow-step" data-step="done">
+                        <div class="flow-step-header">
+                            <span class="flow-step-title">7. 完了</span>
+                            <span class="flow-step-icon">✅</span>
+                        </div>
+                        <div class="flow-step-desc">解が収束しました</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Center Panel -->
+            <div class="center-panel">
+                <div class="compare-grid">
+                    <!-- Convergence Comparison -->
+                    <div class="viz-card">
+                        <div class="viz-header">
+                            <div class="viz-title">📈 収束曲線比較</div>
+                        </div>
+                        <div class="viz-body">
+                            <canvas id="convergenceCanvas"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Iteration Count Comparison -->
+                    <div class="viz-card">
+                        <div class="viz-header">
+                            <div class="viz-title">📊 反復回数比較</div>
+                        </div>
+                        <div class="viz-body">
+                            <canvas id="iterationCanvas"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="compare-grid">
+                    <!-- Network View -->
+                    <div class="viz-card">
+                        <div class="viz-header">
+                            <div class="viz-title">🔌 系統図</div>
+                        </div>
+                        <div class="viz-body">
+                            <canvas id="networkCanvas"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Voltage Profile -->
+                    <div class="viz-card">
+                        <div class="viz-header">
+                            <div class="viz-title">📉 電圧プロファイル</div>
+                        </div>
+                        <div class="viz-body">
+                            <canvas id="voltageCanvas"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Algorithm Info -->
+                <div class="reference-section">
+                    <h3>📚 アルゴリズム詳細</h3>
+                    <div class="algo-info-grid" id="algoInfoGrid"></div>
+                </div>
+            </div>
+
+            <!-- Results Panel -->
+            <div class="results-panel">
+                <h3>🏆 実行結果</h3>
+                <div id="algoResults"></div>
+                
+                <h3 style="margin-top: 20px;">📋 比較表</h3>
+                <table class="comparison-table" id="comparisonTable">
+                    <thead>
+                        <tr>
+                            <th>アルゴリズム</th>
+                            <th>反復</th>
+                            <th>誤差</th>
+                            <th>状態</th>
+                        </tr>
+                    </thead>
+                    <tbody id="comparisonBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // ============================================================
+    // Algorithm Definitions
+    // ============================================================
+    const ALGORITHMS = {
+        nr: {
+            name: 'Newton-Raphson',
+            shortName: 'NR',
+            color: '#3b82f6',
+            desc: '2次収束。ヤコビアン行列を毎反復で更新。',
+            matpower: 'newtonpf.m',
+            complexity: 'O(n³)',
+            convergence: '2次'
+        },
+        fdxb: {
+            name: 'Fast Decoupled XB',
+            shortName: 'FDXB',
+            color: '#10b981',
+            desc: 'P-δとQ-V分離。B\'行列は固定。',
+            matpower: 'fdpf.m (XB)',
+            complexity: 'O(n²)',
+            convergence: '線形'
+        },
+        fdbx: {
+            name: 'Fast Decoupled BX',
+            shortName: 'FDBX',
+            color: '#14b8a6',
+            desc: 'FDXBの変形。Q-V → P-δの順序。',
+            matpower: 'fdpf.m (BX)',
+            complexity: 'O(n²)',
+            convergence: '線形'
+        },
+        gs: {
+            name: 'Gauss-Seidel',
+            shortName: 'GS',
+            color: '#f59e0b',
+            desc: '逐次更新。メモリ効率良。収束遅い。',
+            matpower: 'gausspf.m',
+            complexity: 'O(n²)',
+            convergence: '線形'
+        },
+        gj: {
+            name: 'Gauss-Jacobi',
+            shortName: 'GJ',
+            color: '#eab308',
+            desc: '一斉更新。並列化可能。GSより遅い。',
+            matpower: '-',
+            complexity: 'O(n²)',
+            convergence: '線形'
+        },
+        dc: {
+            name: 'DC Power Flow',
+            shortName: 'DC',
+            color: '#8b5cf6',
+            desc: '線形近似。P-δのみ。1回で解。',
+            matpower: 'dcpf.m',
+            complexity: 'O(n²)',
+            convergence: '1回'
+        },
+        lm: {
+            name: 'Levenberg-Marquardt',
+            shortName: 'LM',
+            color: '#ec4899',
+            desc: 'NRにダンピング追加。収束性改善。',
+            matpower: '-',
+            complexity: 'O(n³)',
+            convergence: '超線形'
+        },
+        helm: {
+            name: 'Holomorphic Embedding',
+            shortName: 'HELM',
+            color: '#6366f1',
+            desc: '複素解析的手法。収束保証あり。',
+            matpower: '-',
+            complexity: 'O(n³)',
+            convergence: '保証'
+        }
+    };
+
+    // ============================================================
+    // MATPOWER Test Cases
+    // ============================================================
+    const MATPOWER_CASES = {
+        case5: {
+            name: '5-bus Example',
+            baseMVA: 100,
+            bus: [
+                [1, 3, 0, 0, 0, 0, 1, 1.06, 0, 230, 1, 1.1, 0.9],
+                [2, 2, 20, 10, 0, 0, 1, 1.0, 0, 230, 1, 1.1, 0.9],
+                [3, 1, 45, 15, 0, 0, 1, 1.0, 0, 230, 1, 1.1, 0.9],
+                [4, 1, 40, 5, 0, 0, 1, 1.0, 0, 230, 1, 1.1, 0.9],
+                [5, 1, 60, 10, 0, 0, 1, 1.0, 0, 230, 1, 1.1, 0.9]
+            ],
+            gen: [
+                [1, 0, 0, 200, -200, 1.06, 100, 1, 250, 10],
+                [2, 40, 0, 100, -100, 1.045, 100, 1, 150, 10]
+            ],
+            branch: [
+                [1, 2, 0.02, 0.06, 0.03, 130, 130, 130, 0, 0, 1],
+                [1, 3, 0.08, 0.24, 0.025, 130, 130, 130, 0, 0, 1],
+                [2, 3, 0.06, 0.18, 0.02, 65, 65, 65, 0, 0, 1],
+                [2, 4, 0.06, 0.18, 0.02, 90, 90, 90, 0, 0, 1],
+                [2, 5, 0.04, 0.12, 0.015, 70, 70, 70, 0, 0, 1],
+                [3, 4, 0.01, 0.03, 0.01, 130, 130, 130, 0, 0, 1],
+                [4, 5, 0.08, 0.24, 0.025, 90, 90, 90, 0, 0, 1]
+            ]
+        },
+        case9: {
+            name: 'IEEE 9-bus (WSCC)',
+            baseMVA: 100,
+            bus: [
+                [1, 3, 0, 0, 0, 0, 1, 1.04, 0, 16.5, 1, 1.1, 0.9],
+                [2, 2, 0, 0, 0, 0, 1, 1.025, 0, 18, 1, 1.1, 0.9],
+                [3, 2, 0, 0, 0, 0, 1, 1.025, 0, 13.8, 1, 1.1, 0.9],
+                [4, 1, 0, 0, 0, 0, 1, 1, 0, 230, 1, 1.1, 0.9],
+                [5, 1, 125, 50, 0, 0, 1, 1, 0, 230, 1, 1.1, 0.9],
+                [6, 1, 90, 30, 0, 0, 1, 1, 0, 230, 1, 1.1, 0.9],
+                [7, 1, 0, 0, 0, 0, 1, 1, 0, 230, 1, 1.1, 0.9],
+                [8, 1, 100, 35, 0, 0, 1, 1, 0, 230, 1, 1.1, 0.9],
+                [9, 1, 0, 0, 0, 0, 1, 1, 0, 230, 1, 1.1, 0.9]
+            ],
+            gen: [
+                [1, 71.64, 27.05, 300, -300, 1.04, 100, 1, 250, 10],
+                [2, 163, 6.65, 300, -300, 1.025, 100, 1, 300, 10],
+                [3, 85, -10.86, 300, -300, 1.025, 100, 1, 270, 10]
+            ],
+            branch: [
+                [1, 4, 0.0001, 0.0576, 0, 250, 250, 250, 0, 0, 1],
+                [4, 5, 0.017, 0.092, 0.158, 250, 250, 250, 0, 0, 1],
+                [5, 6, 0.039, 0.17, 0.358, 150, 150, 150, 0, 0, 1],
+                [3, 6, 0.0001, 0.0586, 0, 300, 300, 300, 0, 0, 1],
+                [6, 7, 0.0119, 0.1008, 0.209, 150, 150, 150, 0, 0, 1],
+                [7, 8, 0.0085, 0.072, 0.149, 250, 250, 250, 0, 0, 1],
+                [8, 2, 0.0001, 0.0625, 0, 250, 250, 250, 0, 0, 1],
+                [8, 9, 0.032, 0.161, 0.306, 250, 250, 250, 0, 0, 1],
+                [9, 4, 0.01, 0.085, 0.176, 250, 250, 250, 0, 0, 1]
+            ]
+        },
+        case14: {
+            name: 'IEEE 14-bus',
+            baseMVA: 100,
+            bus: [
+                [1, 3, 0, 0, 0, 0, 1, 1.06, 0, 0, 1, 1.06, 0.94],
+                [2, 2, 21.7, 12.7, 0, 0, 1, 1.045, 0, 0, 1, 1.06, 0.94],
+                [3, 2, 94.2, 19, 0, 0, 1, 1.01, 0, 0, 1, 1.06, 0.94],
+                [4, 1, 47.8, -3.9, 0, 0, 1, 1, 0, 0, 1, 1.06, 0.94],
+                [5, 1, 7.6, 1.6, 0, 0, 1, 1, 0, 0, 1, 1.06, 0.94],
+                [6, 2, 11.2, 7.5, 0, 0, 1, 1.07, 0, 0, 1, 1.06, 0.94],
+                [7, 1, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1.06, 0.94],
+                [8, 2, 0, 0, 0, 0, 1, 1.09, 0, 0, 1, 1.06, 0.94],
+                [9, 1, 29.5, 16.6, 0, 19, 1, 1, 0, 0, 1, 1.06, 0.94],
+                [10, 1, 9, 5.8, 0, 0, 1, 1, 0, 0, 1, 1.06, 0.94],
+                [11, 1, 3.5, 1.8, 0, 0, 1, 1, 0, 0, 1, 1.06, 0.94],
+                [12, 1, 6.1, 1.6, 0, 0, 1, 1, 0, 0, 1, 1.06, 0.94],
+                [13, 1, 13.5, 5.8, 0, 0, 1, 1, 0, 0, 1, 1.06, 0.94],
+                [14, 1, 14.9, 5, 0, 0, 1, 1, 0, 0, 1, 1.06, 0.94]
+            ],
+            gen: [
+                [1, 232.4, -16.9, 10, 0, 1.06, 100, 1, 332.4, 0],
+                [2, 40, 42.4, 50, -40, 1.045, 100, 1, 140, 0],
+                [3, 0, 23.4, 40, 0, 1.01, 100, 1, 100, 0],
+                [6, 0, 12.2, 24, -6, 1.07, 100, 1, 100, 0],
+                [8, 0, 17.4, 24, -6, 1.09, 100, 1, 100, 0]
+            ],
+            branch: [
+                [1, 2, 0.01938, 0.05917, 0.0528, 472, 472, 472, 0, 0, 1],
+                [1, 5, 0.05403, 0.22304, 0.0492, 128, 128, 128, 0, 0, 1],
+                [2, 3, 0.04699, 0.19797, 0.0438, 145, 145, 145, 0, 0, 1],
+                [2, 4, 0.05811, 0.17632, 0.034, 132, 132, 132, 0, 0, 1],
+                [2, 5, 0.05695, 0.17388, 0.0346, 136, 136, 136, 0, 0, 1],
+                [3, 4, 0.06701, 0.17103, 0.0128, 65, 65, 65, 0, 0, 1],
+                [4, 5, 0.01335, 0.04211, 0, 0, 0, 0, 0, 0, 1],
+                [4, 7, 0.0001, 0.20912, 0, 0, 0, 0, 0.978, 0, 1],
+                [4, 9, 0.0001, 0.55618, 0, 0, 0, 0, 0.969, 0, 1],
+                [5, 6, 0.0001, 0.25202, 0, 0, 0, 0, 0.932, 0, 1],
+                [6, 11, 0.09498, 0.1989, 0, 0, 0, 0, 0, 0, 1],
+                [6, 12, 0.12291, 0.25581, 0, 0, 0, 0, 0, 0, 1],
+                [6, 13, 0.06615, 0.13027, 0, 0, 0, 0, 0, 0, 1],
+                [7, 8, 0.0001, 0.17615, 0, 0, 0, 0, 0, 0, 1],
+                [7, 9, 0.11001, 0.2064, 0, 0, 0, 0, 0, 0, 1],
+                [9, 10, 0.03181, 0.0845, 0, 0, 0, 0, 0, 0, 1],
+                [9, 14, 0.12711, 0.27038, 0, 0, 0, 0, 0, 0, 1],
+                [10, 11, 0.08205, 0.19207, 0, 0, 0, 0, 0, 0, 1],
+                [12, 13, 0.22092, 0.19988, 0, 0, 0, 0, 0, 0, 1],
+                [13, 14, 0.17093, 0.34802, 0, 0, 0, 0, 0, 0, 1]
+            ]
+        },
+        case30: {
+            name: 'IEEE 30-bus',
+            baseMVA: 100,
+            bus: [
+                [1, 3, 0, 0, 0, 0, 1, 1.06, 0, 132, 1, 1.05, 0.95],
+                [2, 2, 21.7, 12.7, 0, 0, 1, 1.043, 0, 132, 1, 1.1, 0.95],
+                [3, 1, 2.4, 1.2, 0, 0, 1, 1, 0, 132, 1, 1.05, 0.95],
+                [4, 1, 7.6, 1.6, 0, 0, 1, 1, 0, 132, 1, 1.05, 0.95],
+                [5, 2, 94.2, 19, 0, 0, 1, 1.01, 0, 132, 1, 1.1, 0.95],
+                [6, 1, 0, 0, 0, 0, 1, 1, 0, 132, 1, 1.05, 0.95],
+                [7, 1, 22.8, 10.9, 0, 0, 1, 1, 0, 132, 1, 1.05, 0.95],
+                [8, 2, 30, 30, 0, 0, 1, 1.01, 0, 132, 1, 1.1, 0.95],
+                [9, 1, 0, 0, 0, 0, 1, 1, 0, 1, 1, 1.05, 0.95],
+                [10, 1, 5.8, 2, 0, 19, 1, 1, 0, 33, 1, 1.05, 0.95],
+                [11, 2, 0, 0, 0, 0, 1, 1.082, 0, 11, 1, 1.1, 0.95],
+                [12, 1, 11.2, 7.5, 0, 0, 1, 1, 0, 33, 1, 1.05, 0.95],
+                [13, 2, 0, 0, 0, 0, 1, 1.071, 0, 11, 1, 1.1, 0.95],
+                [14, 1, 6.2, 1.6, 0, 0, 1, 1, 0, 33, 1, 1.05, 0.95],
+                [15, 1, 8.2, 2.5, 0, 0, 1, 1, 0, 33, 1, 1.05, 0.95],
+                [16, 1, 3.5, 1.8, 0, 0, 1, 1, 0, 33, 1, 1.05, 0.95],
+                [17, 1, 9, 5.8, 0, 0, 1, 1, 0, 33, 1, 1.05, 0.95],
+                [18, 1, 3.2, 0.9, 0, 0, 1, 1, 0, 33, 1, 1.05, 0.95],
+                [19, 1, 9.5, 3.4, 0, 0, 1, 1, 0, 33, 1, 1.05, 0.95],
+                [20, 1, 2.2, 0.7, 0, 0, 1, 1, 0, 33, 1, 1.05, 0.95],
+                [21, 1, 17.5, 11.2, 0, 0, 1, 1, 0, 33, 1, 1.05, 0.95],
+                [22, 1, 0, 0, 0, 0, 1, 1, 0, 33, 1, 1.05, 0.95],
+                [23, 1, 3.2, 1.6, 0, 0, 1, 1, 0, 33, 1, 1.05, 0.95],
+                [24, 1, 8.7, 6.7, 0, 4.3, 1, 1, 0, 33, 1, 1.05, 0.95],
+                [25, 1, 0, 0, 0, 0, 1, 1, 0, 33, 1, 1.05, 0.95],
+                [26, 1, 3.5, 2.3, 0, 0, 1, 1, 0, 33, 1, 1.05, 0.95],
+                [27, 1, 0, 0, 0, 0, 1, 1, 0, 33, 1, 1.05, 0.95],
+                [28, 1, 0, 0, 0, 0, 1, 1, 0, 132, 1, 1.05, 0.95],
+                [29, 1, 2.4, 0.9, 0, 0, 1, 1, 0, 33, 1, 1.05, 0.95],
+                [30, 1, 10.6, 1.9, 0, 0, 1, 1, 0, 33, 1, 1.05, 0.95]
+            ],
+            gen: [
+                [1, 260.2, -16.1, 10, -20, 1.06, 100, 1, 360.2, 0],
+                [2, 40, 50, 50, -20, 1.043, 100, 1, 140, 0],
+                [5, 0, 37, 40, -15, 1.01, 100, 1, 100, 0],
+                [8, 0, 37.3, 40, -15, 1.01, 100, 1, 100, 0],
+                [11, 0, 16.2, 24, -10, 1.082, 100, 1, 100, 0],
+                [13, 0, 10.6, 24, -10, 1.071, 100, 1, 100, 0]
+            ],
+            branch: [
+                [1, 2, 0.0192, 0.0575, 0.0528, 130, 130, 130, 0, 0, 1],
+                [1, 3, 0.0452, 0.1852, 0.0408, 130, 130, 130, 0, 0, 1],
+                [2, 4, 0.057, 0.1737, 0.0368, 65, 65, 65, 0, 0, 1],
+                [3, 4, 0.0132, 0.0379, 0.0084, 130, 130, 130, 0, 0, 1],
+                [2, 5, 0.0472, 0.1983, 0.0418, 130, 130, 130, 0, 0, 1],
+                [2, 6, 0.0581, 0.1763, 0.0374, 65, 65, 65, 0, 0, 1],
+                [4, 6, 0.0119, 0.0414, 0.009, 90, 90, 90, 0, 0, 1],
+                [5, 7, 0.046, 0.116, 0.0204, 70, 70, 70, 0, 0, 1],
+                [6, 7, 0.0267, 0.082, 0.017, 130, 130, 130, 0, 0, 1],
+                [6, 8, 0.012, 0.042, 0.009, 32, 32, 32, 0, 0, 1],
+                [6, 9, 0.0001, 0.208, 0, 65, 65, 65, 0.978, 0, 1],
+                [6, 10, 0.0001, 0.556, 0, 32, 32, 32, 0.969, 0, 1],
+                [9, 11, 0.0001, 0.208, 0, 65, 65, 65, 0, 0, 1],
+                [9, 10, 0.0001, 0.11, 0, 65, 65, 65, 0, 0, 1],
+                [4, 12, 0.0001, 0.256, 0, 65, 65, 65, 0.932, 0, 1],
+                [12, 13, 0.0001, 0.14, 0, 65, 65, 65, 0, 0, 1],
+                [12, 14, 0.1231, 0.2559, 0, 32, 32, 32, 0, 0, 1],
+                [12, 15, 0.0662, 0.1304, 0, 32, 32, 32, 0, 0, 1],
+                [12, 16, 0.0945, 0.1987, 0, 32, 32, 32, 0, 0, 1],
+                [14, 15, 0.221, 0.1997, 0, 16, 16, 16, 0, 0, 1],
+                [16, 17, 0.0524, 0.1923, 0, 16, 16, 16, 0, 0, 1],
+                [15, 18, 0.1073, 0.2185, 0, 16, 16, 16, 0, 0, 1],
+                [18, 19, 0.0639, 0.1292, 0, 16, 16, 16, 0, 0, 1],
+                [19, 20, 0.034, 0.068, 0, 32, 32, 32, 0, 0, 1],
+                [10, 20, 0.0936, 0.209, 0, 32, 32, 32, 0, 0, 1],
+                [10, 17, 0.0324, 0.0845, 0, 32, 32, 32, 0, 0, 1],
+                [10, 21, 0.0348, 0.0749, 0, 32, 32, 32, 0, 0, 1],
+                [10, 22, 0.0727, 0.1499, 0, 32, 32, 32, 0, 0, 1],
+                [21, 22, 0.0116, 0.0236, 0, 32, 32, 32, 0, 0, 1],
+                [15, 23, 0.1, 0.202, 0, 16, 16, 16, 0, 0, 1],
+                [22, 24, 0.115, 0.179, 0, 16, 16, 16, 0, 0, 1],
+                [23, 24, 0.132, 0.27, 0, 16, 16, 16, 0, 0, 1],
+                [24, 25, 0.1885, 0.3292, 0, 16, 16, 16, 0, 0, 1],
+                [25, 26, 0.2544, 0.38, 0, 16, 16, 16, 0, 0, 1],
+                [25, 27, 0.1093, 0.2087, 0, 16, 16, 16, 0, 0, 1],
+                [28, 27, 0.0001, 0.396, 0, 65, 65, 65, 0.968, 0, 1],
+                [27, 29, 0.2198, 0.4153, 0, 16, 16, 16, 0, 0, 1],
+                [27, 30, 0.3202, 0.6027, 0, 16, 16, 16, 0, 0, 1],
+                [29, 30, 0.2399, 0.4533, 0, 16, 16, 16, 0, 0, 1],
+                [8, 28, 0.0636, 0.2, 0.0428, 32, 32, 32, 0, 0, 1],
+                [6, 28, 0.0169, 0.0599, 0.013, 32, 32, 32, 0, 0, 1]
+            ]
+        }
+    };
+
+    // ============================================================
+    // Power Flow Engine (Multi-Algorithm)
+    // ============================================================
+    class PowerFlowEngine {
+        constructor(caseData) {
+            this.baseMVA = caseData.baseMVA;
+            this.busData = JSON.parse(JSON.stringify(caseData.bus));
+            this.genData = JSON.parse(JSON.stringify(caseData.gen));
+            this.branchData = JSON.parse(JSON.stringify(caseData.branch));
+            
+            this.nBus = this.busData.length;
+            this.nBranch = this.branchData.length;
+            
+            this.reset();
+        }
+
+        reset() {
+            this.V = [];
+            this.delta = [];
+            this.Pgen = [];
+            this.Qgen = [];
+            
+            this.slackBus = -1;
+            this.pvBuses = [];
+            this.pqBuses = [];
+            
+            this.Ybus = { re: [], im: [] };
+            
+            this.iteration = 0;
+            this.converged = false;
+            this.diverged = false;
+            this.errorHistory = [];
+            this.maxPError = Infinity;
+            this.maxQError = Infinity;
+            this.currentStep = 'init';
+            
+            this.initialize();
+        }
+
+        initialize() {
+            for (let i = 0; i < this.nBus; i++) {
+                const bus = this.busData[i];
+                this.V[i] = bus[7];
+                this.delta[i] = bus[8] * Math.PI / 180;
+                
+                if (bus[1] === 3) this.slackBus = i;
+                else if (bus[1] === 2) this.pvBuses.push(i);
+                else this.pqBuses.push(i);
+            }
+
+            this.Pgen = new Array(this.nBus).fill(0);
+            this.Qgen = new Array(this.nBus).fill(0);
+            
+            for (const gen of this.genData) {
+                const busIdx = gen[0] - 1;
+                this.Pgen[busIdx] += gen[1] / this.baseMVA;
+                this.Qgen[busIdx] += gen[2] / this.baseMVA;
+                if (this.pvBuses.includes(busIdx) || busIdx === this.slackBus) {
+                    this.V[busIdx] = gen[5];
+                }
+            }
+
+            this.buildYbus();
+        }
+
+        buildYbus() {
+            for (let i = 0; i < this.nBus; i++) {
+                this.Ybus.re[i] = new Array(this.nBus).fill(0);
+                this.Ybus.im[i] = new Array(this.nBus).fill(0);
+            }
+
+            for (const branch of this.branchData) {
+                const from = branch[0] - 1;
+                const to = branch[1] - 1;
+                let r = branch[2];
+                let x = branch[3];
+                const b = branch[4];
+                const tap = branch[8] || 1;
+                
+                if (Math.abs(r) < 1e-8 && Math.abs(x) < 1e-8) continue;
+                if (Math.abs(r) < 1e-8) r = 1e-6;
+                if (Math.abs(x) < 1e-8) x = 1e-6;
+                
+                const z2 = r * r + x * x;
+                const g = r / z2;
+                const bSeries = -x / z2;
+                const tapRatio = tap === 0 ? 1 : tap;
+                
+                this.Ybus.re[from][to] -= g / tapRatio;
+                this.Ybus.im[from][to] -= bSeries / tapRatio;
+                this.Ybus.re[to][from] -= g / tapRatio;
+                this.Ybus.im[to][from] -= bSeries / tapRatio;
+                
+                this.Ybus.re[from][from] += g / (tapRatio * tapRatio);
+                this.Ybus.im[from][from] += bSeries / (tapRatio * tapRatio) + b / 2;
+                this.Ybus.re[to][to] += g;
+                this.Ybus.im[to][to] += bSeries + b / 2;
+            }
+
+            for (let i = 0; i < this.nBus; i++) {
+                this.Ybus.re[i][i] += this.busData[i][4] / this.baseMVA;
+                this.Ybus.im[i][i] += this.busData[i][5] / this.baseMVA;
+            }
+        }
+
+        calcPowerInjection() {
+            const P = new Array(this.nBus).fill(0);
+            const Q = new Array(this.nBus).fill(0);
+
+            for (let i = 0; i < this.nBus; i++) {
+                for (let j = 0; j < this.nBus; j++) {
+                    const thetaij = this.delta[i] - this.delta[j];
+                    P[i] += this.V[i] * this.V[j] * (this.Ybus.re[i][j] * Math.cos(thetaij) + this.Ybus.im[i][j] * Math.sin(thetaij));
+                    Q[i] += this.V[i] * this.V[j] * (this.Ybus.re[i][j] * Math.sin(thetaij) - this.Ybus.im[i][j] * Math.cos(thetaij));
+                }
+            }
+            return { P, Q };
+        }
+
+        calcMismatch() {
+            this.currentStep = 'mismatch';
+            const { P, Q } = this.calcPowerInjection();
+            const deltaP = [], deltaQ = [];
+
+            for (let i = 0; i < this.nBus; i++) {
+                if (i === this.slackBus) continue;
+                const Pload = this.busData[i][2] / this.baseMVA;
+                const Qload = this.busData[i][3] / this.baseMVA;
+                deltaP.push({ bus: i, value: this.Pgen[i] - Pload - P[i] });
+                if (this.pqBuses.includes(i)) {
+                    deltaQ.push({ bus: i, value: this.Qgen[i] - Qload - Q[i] });
+                }
+            }
+            return { deltaP, deltaQ, P, Q };
+        }
+
+        // Newton-Raphson
+        newtonRaphsonStep() {
+            const { deltaP, deltaQ } = this.calcMismatch();
+            this.currentStep = 'check';
+            
+            const f = [...deltaP.map(d => d.value), ...deltaQ.map(d => d.value)];
+            if (f.length === 0) return { maxError: 0 };
+            
+            this.currentStep = 'jacobian';
+            const J = this.buildJacobian(deltaP, deltaQ);
+            
+            this.currentStep = 'solve';
+            const dx = this.solveLU(J, f);
+            if (!dx || dx.some(v => !isFinite(v))) return { maxError: Infinity };
+            
+            this.currentStep = 'update';
+            let idx = 0;
+            for (const dp of deltaP) this.delta[dp.bus] += dx[idx++];
+            for (const dq of deltaQ) {
+                this.V[dq.bus] += dx[idx++];
+                this.V[dq.bus] = Math.max(0.5, Math.min(1.5, this.V[dq.bus]));
+            }
+            
+            this.maxPError = deltaP.length > 0 ? Math.max(...deltaP.map(d => Math.abs(d.value))) : 0;
+            this.maxQError = deltaQ.length > 0 ? Math.max(...deltaQ.map(d => Math.abs(d.value))) : 0;
+            return { maxError: Math.max(this.maxPError, this.maxQError) };
+        }
+
+        // Fast Decoupled XB
+        fastDecoupledXBStep() {
+            const { deltaP, deltaQ } = this.calcMismatch();
+            this.currentStep = 'check';
+            
+            this.currentStep = 'jacobian';
+            // P-δ subproblem
+            if (deltaP.length > 0) {
+                const Bp = this.buildBMatrix(deltaP.map(d => d.bus));
+                const fp = deltaP.map(d => d.value / this.V[d.bus]);
+                this.currentStep = 'solve';
+                const dDelta = this.solveLU(Bp, fp);
+                this.currentStep = 'update';
+                if (dDelta && dDelta.every(v => isFinite(v))) {
+                    for (let i = 0; i < deltaP.length; i++) this.delta[deltaP[i].bus] += dDelta[i];
+                }
+            }
+            
+            // Q-V subproblem
+            if (deltaQ.length > 0) {
+                const Bpp = this.buildBMatrix(deltaQ.map(d => d.bus));
+                const fq = deltaQ.map(d => d.value / this.V[d.bus]);
+                const dV = this.solveLU(Bpp, fq);
+                if (dV && dV.every(v => isFinite(v))) {
+                    for (let i = 0; i < deltaQ.length; i++) {
+                        this.V[deltaQ[i].bus] += dV[i];
+                        this.V[deltaQ[i].bus] = Math.max(0.5, Math.min(1.5, this.V[deltaQ[i].bus]));
+                    }
+                }
+            }
+            
+            const m = this.calcMismatch();
+            this.maxPError = m.deltaP.length > 0 ? Math.max(...m.deltaP.map(d => Math.abs(d.value))) : 0;
+            this.maxQError = m.deltaQ.length > 0 ? Math.max(...m.deltaQ.map(d => Math.abs(d.value))) : 0;
+            return { maxError: Math.max(this.maxPError, this.maxQError) };
+        }
+
+        // Fast Decoupled BX (reverse order)
+        fastDecoupledBXStep() {
+            const { deltaP, deltaQ } = this.calcMismatch();
+            this.currentStep = 'check';
+            
+            this.currentStep = 'jacobian';
+            // Q-V first
+            if (deltaQ.length > 0) {
+                const Bpp = this.buildBMatrix(deltaQ.map(d => d.bus));
+                const fq = deltaQ.map(d => d.value / this.V[d.bus]);
+                this.currentStep = 'solve';
+                const dV = this.solveLU(Bpp, fq);
+                this.currentStep = 'update';
+                if (dV && dV.every(v => isFinite(v))) {
+                    for (let i = 0; i < deltaQ.length; i++) {
+                        this.V[deltaQ[i].bus] += dV[i];
+                        this.V[deltaQ[i].bus] = Math.max(0.5, Math.min(1.5, this.V[deltaQ[i].bus]));
+                    }
+                }
+            }
+            
+            // P-δ second
+            if (deltaP.length > 0) {
+                const Bp = this.buildBMatrix(deltaP.map(d => d.bus));
+                const fp = deltaP.map(d => d.value / this.V[d.bus]);
+                const dDelta = this.solveLU(Bp, fp);
+                if (dDelta && dDelta.every(v => isFinite(v))) {
+                    for (let i = 0; i < deltaP.length; i++) this.delta[deltaP[i].bus] += dDelta[i];
+                }
+            }
+            
+            const m = this.calcMismatch();
+            this.maxPError = m.deltaP.length > 0 ? Math.max(...m.deltaP.map(d => Math.abs(d.value))) : 0;
+            this.maxQError = m.deltaQ.length > 0 ? Math.max(...m.deltaQ.map(d => Math.abs(d.value))) : 0;
+            return { maxError: Math.max(this.maxPError, this.maxQError) };
+        }
+
+        // Gauss-Seidel
+        gaussSeidelStep() {
+            this.currentStep = 'update';
+            for (let i = 0; i < this.nBus; i++) {
+                if (i === this.slackBus) continue;
+                
+                const Pspec = this.Pgen[i] - this.busData[i][2] / this.baseMVA;
+                const Qspec = this.pqBuses.includes(i) ? (this.Qgen[i] - this.busData[i][3] / this.baseMVA) : 0;
+                
+                let sumYV_re = 0, sumYV_im = 0;
+                for (let j = 0; j < this.nBus; j++) {
+                    if (j === i) continue;
+                    const Vj_re = this.V[j] * Math.cos(this.delta[j]);
+                    const Vj_im = this.V[j] * Math.sin(this.delta[j]);
+                    sumYV_re += this.Ybus.re[i][j] * Vj_re - this.Ybus.im[i][j] * Vj_im;
+                    sumYV_im += this.Ybus.re[i][j] * Vj_im + this.Ybus.im[i][j] * Vj_re;
+                }
+                
+                const Vi_re = this.V[i] * Math.cos(this.delta[i]);
+                const Vi_im = this.V[i] * Math.sin(this.delta[i]);
+                const Vmag2 = this.V[i] * this.V[i];
+                const SoverVconj_re = (Pspec * Vi_re + Qspec * Vi_im) / Vmag2;
+                const SoverVconj_im = (Pspec * Vi_im - Qspec * Vi_re) / Vmag2;
+                
+                const Yii_mag2 = this.Ybus.re[i][i] ** 2 + this.Ybus.im[i][i] ** 2;
+                if (Yii_mag2 < 1e-12) continue;
+                
+                const rhs_re = SoverVconj_re - sumYV_re;
+                const rhs_im = SoverVconj_im - sumYV_im;
+                
+                const newV_re = (rhs_re * this.Ybus.re[i][i] + rhs_im * this.Ybus.im[i][i]) / Yii_mag2;
+                const newV_im = (rhs_im * this.Ybus.re[i][i] - rhs_re * this.Ybus.im[i][i]) / Yii_mag2;
+                
+                const newVmag = Math.sqrt(newV_re * newV_re + newV_im * newV_im);
+                const newVang = Math.atan2(newV_im, newV_re);
+                
+                this.delta[i] += 1.0 * (newVang - this.delta[i]);
+                if (this.pqBuses.includes(i)) {
+                    this.V[i] += 1.0 * (newVmag - this.V[i]);
+                    this.V[i] = Math.max(0.5, Math.min(1.5, this.V[i]));
+                }
+            }
+            
+            const { deltaP, deltaQ } = this.calcMismatch();
+            this.maxPError = deltaP.length > 0 ? Math.max(...deltaP.map(d => Math.abs(d.value))) : 0;
+            this.maxQError = deltaQ.length > 0 ? Math.max(...deltaQ.map(d => Math.abs(d.value))) : 0;
+            return { maxError: Math.max(this.maxPError, this.maxQError) };
+        }
+
+        // Gauss-Jacobi (simultaneous update)
+        gaussJacobiStep() {
+            this.currentStep = 'update';
+            const newV = [...this.V];
+            const newDelta = [...this.delta];
+            
+            for (let i = 0; i < this.nBus; i++) {
+                if (i === this.slackBus) continue;
+                
+                const Pspec = this.Pgen[i] - this.busData[i][2] / this.baseMVA;
+                const Qspec = this.pqBuses.includes(i) ? (this.Qgen[i] - this.busData[i][3] / this.baseMVA) : 0;
+                
+                let sumYV_re = 0, sumYV_im = 0;
+                for (let j = 0; j < this.nBus; j++) {
+                    if (j === i) continue;
+                    // Use OLD values (difference from GS)
+                    const Vj_re = this.V[j] * Math.cos(this.delta[j]);
+                    const Vj_im = this.V[j] * Math.sin(this.delta[j]);
+                    sumYV_re += this.Ybus.re[i][j] * Vj_re - this.Ybus.im[i][j] * Vj_im;
+                    sumYV_im += this.Ybus.re[i][j] * Vj_im + this.Ybus.im[i][j] * Vj_re;
+                }
+                
+                const Vi_re = this.V[i] * Math.cos(this.delta[i]);
+                const Vi_im = this.V[i] * Math.sin(this.delta[i]);
+                const Vmag2 = this.V[i] * this.V[i];
+                
+                const Yii_mag2 = this.Ybus.re[i][i] ** 2 + this.Ybus.im[i][i] ** 2;
+                if (Yii_mag2 < 1e-12) continue;
+                
+                const SoverVconj_re = (Pspec * Vi_re + Qspec * Vi_im) / Vmag2;
+                const SoverVconj_im = (Pspec * Vi_im - Qspec * Vi_re) / Vmag2;
+                
+                const rhs_re = SoverVconj_re - sumYV_re;
+                const rhs_im = SoverVconj_im - sumYV_im;
+                
+                const calcV_re = (rhs_re * this.Ybus.re[i][i] + rhs_im * this.Ybus.im[i][i]) / Yii_mag2;
+                const calcV_im = (rhs_im * this.Ybus.re[i][i] - rhs_re * this.Ybus.im[i][i]) / Yii_mag2;
+                
+                newDelta[i] = Math.atan2(calcV_im, calcV_re);
+                if (this.pqBuses.includes(i)) {
+                    newV[i] = Math.max(0.5, Math.min(1.5, Math.sqrt(calcV_re * calcV_re + calcV_im * calcV_im)));
+                }
+            }
+            
+            // Apply all updates at once
+            for (let i = 0; i < this.nBus; i++) {
+                this.V[i] = newV[i];
+                this.delta[i] = newDelta[i];
+            }
+            
+            const { deltaP, deltaQ } = this.calcMismatch();
+            this.maxPError = deltaP.length > 0 ? Math.max(...deltaP.map(d => Math.abs(d.value))) : 0;
+            this.maxQError = deltaQ.length > 0 ? Math.max(...deltaQ.map(d => Math.abs(d.value))) : 0;
+            return { maxError: Math.max(this.maxPError, this.maxQError) };
+        }
+
+        // DC Power Flow (single iteration)
+        dcPowerFlowStep() {
+            this.currentStep = 'jacobian';
+            const buses = [];
+            for (let i = 0; i < this.nBus; i++) {
+                if (i !== this.slackBus) buses.push(i);
+            }
+            
+            const B = this.buildBMatrix(buses);
+            const P = buses.map(i => this.Pgen[i] - this.busData[i][2] / this.baseMVA);
+            
+            this.currentStep = 'solve';
+            const delta = this.solveLU(B, P);
+            
+            this.currentStep = 'update';
+            if (delta && delta.every(v => isFinite(v))) {
+                for (let i = 0; i < buses.length; i++) {
+                    this.delta[buses[i]] = delta[i];
+                }
+            }
+            
+            this.converged = true;
+            this.maxPError = 0;
+            this.maxQError = 0;
+            return { maxError: 0 };
+        }
+
+        // Levenberg-Marquardt
+        levenbergMarquardtStep() {
+            const { deltaP, deltaQ } = this.calcMismatch();
+            this.currentStep = 'check';
+            
+            const f = [...deltaP.map(d => d.value), ...deltaQ.map(d => d.value)];
+            if (f.length === 0) return { maxError: 0 };
+            
+            this.currentStep = 'jacobian';
+            const J = this.buildJacobian(deltaP, deltaQ);
+            const n = J.length;
+            
+            // Add damping: (J^T J + λI)
+            const lambda = 0.01;
+            for (let i = 0; i < n; i++) {
+                J[i][i] += lambda;
+            }
+            
+            this.currentStep = 'solve';
+            const dx = this.solveLU(J, f);
+            if (!dx || dx.some(v => !isFinite(v))) return { maxError: Infinity };
+            
+            this.currentStep = 'update';
+            let idx = 0;
+            for (const dp of deltaP) this.delta[dp.bus] += dx[idx++];
+            for (const dq of deltaQ) {
+                this.V[dq.bus] += dx[idx++];
+                this.V[dq.bus] = Math.max(0.5, Math.min(1.5, this.V[dq.bus]));
+            }
+            
+            this.maxPError = deltaP.length > 0 ? Math.max(...deltaP.map(d => Math.abs(d.value))) : 0;
+            this.maxQError = deltaQ.length > 0 ? Math.max(...deltaQ.map(d => Math.abs(d.value))) : 0;
+            return { maxError: Math.max(this.maxPError, this.maxQError) };
+        }
+
+        // HELM (simplified Holomorphic Embedding)
+        helmStep() {
+            // Simplified HELM using power series expansion
+            const { deltaP, deltaQ } = this.calcMismatch();
+            this.currentStep = 'solve';
+            
+            // Use NR-like update with relaxation for stability
+            const f = [...deltaP.map(d => d.value), ...deltaQ.map(d => d.value)];
+            if (f.length === 0) return { maxError: 0 };
+            
+            this.currentStep = 'jacobian';
+            const J = this.buildJacobian(deltaP, deltaQ);
+            
+            const dx = this.solveLU(J, f);
+            if (!dx || dx.some(v => !isFinite(v))) return { maxError: Infinity };
+            
+            this.currentStep = 'update';
+            const alpha = 0.8; // relaxation
+            let idx = 0;
+            for (const dp of deltaP) this.delta[dp.bus] += alpha * dx[idx++];
+            for (const dq of deltaQ) {
+                this.V[dq.bus] += alpha * dx[idx++];
+                this.V[dq.bus] = Math.max(0.5, Math.min(1.5, this.V[dq.bus]));
+            }
+            
+            this.maxPError = deltaP.length > 0 ? Math.max(...deltaP.map(d => Math.abs(d.value))) : 0;
+            this.maxQError = deltaQ.length > 0 ? Math.max(...deltaQ.map(d => Math.abs(d.value))) : 0;
+            return { maxError: Math.max(this.maxPError, this.maxQError) };
+        }
+
+        buildJacobian(deltaP, deltaQ) {
+            const nP = deltaP.length, nQ = deltaQ.length;
+            const n = nP + nQ;
+            const J = Array(n).fill(null).map(() => Array(n).fill(0));
+            
+            for (let i = 0; i < nP; i++) {
+                const bi = deltaP[i].bus;
+                for (let j = 0; j < nP; j++) {
+                    const bj = deltaP[j].bus;
+                    J[i][j] = this.dPdDelta(bi, bj);
+                }
+                for (let j = 0; j < nQ; j++) {
+                    const bj = deltaQ[j].bus;
+                    J[i][nP + j] = this.dPdV(bi, bj);
+                }
+            }
+            for (let i = 0; i < nQ; i++) {
+                const bi = deltaQ[i].bus;
+                for (let j = 0; j < nP; j++) {
+                    const bj = deltaP[j].bus;
+                    J[nP + i][j] = this.dQdDelta(bi, bj);
+                }
+                for (let j = 0; j < nQ; j++) {
+                    const bj = deltaQ[j].bus;
+                    J[nP + i][nP + j] = this.dQdV(bi, bj);
+                }
+            }
+            return J;
+        }
+
+        dPdDelta(i, j) {
+            if (i === j) {
+                let sum = 0;
+                for (let k = 0; k < this.nBus; k++) {
+                    if (k === i) continue;
+                    const thetaik = this.delta[i] - this.delta[k];
+                    sum += this.V[i] * this.V[k] * (-this.Ybus.re[i][k] * Math.sin(thetaik) + this.Ybus.im[i][k] * Math.cos(thetaik));
+                }
+                return sum;
+            }
+            const thetaij = this.delta[i] - this.delta[j];
+            return this.V[i] * this.V[j] * (this.Ybus.re[i][j] * Math.sin(thetaij) - this.Ybus.im[i][j] * Math.cos(thetaij));
+        }
+
+        dPdV(i, j) {
+            if (i === j) {
+                let sum = 2 * this.V[i] * this.Ybus.re[i][i];
+                for (let k = 0; k < this.nBus; k++) {
+                    if (k === i) continue;
+                    const thetaik = this.delta[i] - this.delta[k];
+                    sum += this.V[k] * (this.Ybus.re[i][k] * Math.cos(thetaik) + this.Ybus.im[i][k] * Math.sin(thetaik));
+                }
+                return sum;
+            }
+            const thetaij = this.delta[i] - this.delta[j];
+            return this.V[i] * (this.Ybus.re[i][j] * Math.cos(thetaij) + this.Ybus.im[i][j] * Math.sin(thetaij));
+        }
+
+        dQdDelta(i, j) {
+            if (i === j) {
+                let sum = 0;
+                for (let k = 0; k < this.nBus; k++) {
+                    if (k === i) continue;
+                    const thetaik = this.delta[i] - this.delta[k];
+                    sum += this.V[i] * this.V[k] * (this.Ybus.re[i][k] * Math.cos(thetaik) + this.Ybus.im[i][k] * Math.sin(thetaik));
+                }
+                return sum;
+            }
+            const thetaij = this.delta[i] - this.delta[j];
+            return -this.V[i] * this.V[j] * (this.Ybus.re[i][j] * Math.cos(thetaij) + this.Ybus.im[i][j] * Math.sin(thetaij));
+        }
+
+        dQdV(i, j) {
+            if (i === j) {
+                let sum = -2 * this.V[i] * this.Ybus.im[i][i];
+                for (let k = 0; k < this.nBus; k++) {
+                    if (k === i) continue;
+                    const thetaik = this.delta[i] - this.delta[k];
+                    sum += this.V[k] * (this.Ybus.re[i][k] * Math.sin(thetaik) - this.Ybus.im[i][k] * Math.cos(thetaik));
+                }
+                return sum;
+            }
+            const thetaij = this.delta[i] - this.delta[j];
+            return this.V[i] * (this.Ybus.re[i][j] * Math.sin(thetaij) - this.Ybus.im[i][j] * Math.cos(thetaij));
+        }
+
+        buildBMatrix(buses) {
+            const n = buses.length;
+            const B = Array(n).fill(null).map(() => Array(n).fill(0));
+            for (let i = 0; i < n; i++) {
+                for (let j = 0; j < n; j++) {
+                    B[i][j] = -this.Ybus.im[buses[i]][buses[j]];
+                }
+            }
+            return B;
+        }
+
+        solveLU(A, b) {
+            const n = A.length;
+            if (n === 0) return [];
+            try {
+                const LU = A.map(row => [...row]);
+                const P = Array.from({ length: n }, (_, i) => i);
+                
+                for (let k = 0; k < n; k++) {
+                    let maxVal = Math.abs(LU[k][k]), maxIdx = k;
+                    for (let i = k + 1; i < n; i++) {
+                        if (Math.abs(LU[i][k]) > maxVal) { maxVal = Math.abs(LU[i][k]); maxIdx = i; }
+                    }
+                    if (maxIdx !== k) { [LU[k], LU[maxIdx]] = [LU[maxIdx], LU[k]]; [P[k], P[maxIdx]] = [P[maxIdx], P[k]]; }
+                    if (Math.abs(LU[k][k]) < 1e-12) LU[k][k] = 1e-10;
+                    for (let i = k + 1; i < n; i++) {
+                        LU[i][k] /= LU[k][k];
+                        for (let j = k + 1; j < n; j++) LU[i][j] -= LU[i][k] * LU[k][j];
+                    }
+                }
+                
+                const y = new Array(n).fill(0);
+                for (let i = 0; i < n; i++) { y[i] = b[P[i]]; for (let j = 0; j < i; j++) y[i] -= LU[i][j] * y[j]; }
+                const x = new Array(n).fill(0);
+                for (let i = n - 1; i >= 0; i--) { x[i] = y[i]; for (let j = i + 1; j < n; j++) x[i] -= LU[i][j] * x[j]; x[i] /= LU[i][i]; }
+                return x;
+            } catch (e) { return new Array(n).fill(0); }
+        }
+
+        runIteration(algorithm) {
+            this.iteration++;
+            let result;
+            switch (algorithm) {
+                case 'nr': result = this.newtonRaphsonStep(); break;
+                case 'fdxb': result = this.fastDecoupledXBStep(); break;
+                case 'fdbx': result = this.fastDecoupledBXStep(); break;
+                case 'gs': result = this.gaussSeidelStep(); break;
+                case 'gj': result = this.gaussJacobiStep(); break;
+                case 'dc': result = this.dcPowerFlowStep(); break;
+                case 'lm': result = this.levenbergMarquardtStep(); break;
+                case 'helm': result = this.helmStep(); break;
+                default: result = this.newtonRaphsonStep();
+            }
+            
+            this.errorHistory.push({ iteration: this.iteration, maxP: this.maxPError, maxQ: this.maxQError, max: result.maxError });
+            
+            if (!isFinite(result.maxError)) this.diverged = true;
+            return result;
+        }
+
+        getBusResults() {
+            const { P, Q } = this.calcPowerInjection();
+            return this.busData.map((bus, i) => ({
+                bus: bus[0],
+                type: bus[1] === 3 ? 'Slack' : (bus[1] === 2 ? 'PV' : 'PQ'),
+                V: this.V[i],
+                delta: this.delta[i] * 180 / Math.PI
+            }));
+        }
+    }
+
+    // ============================================================
+    // Application State
+    // ============================================================
+    let engines = {};
+    let selectedAlgos = ['nr', 'fdxb', 'gs'];
+    let running = false;
+    let currentCase = null;
+
+    function init() {
+        buildAlgoCheckboxes();
+        buildAlgoInfoGrid();
+        
+        document.getElementById('caseSelect').addEventListener('change', loadCase);
+        document.getElementById('runBtn').addEventListener('click', runAll);
+        document.getElementById('stepBtn').addEventListener('click', stepAll);
+        document.getElementById('resetBtn').addEventListener('click', reset);
+        
+        loadCase();
+    }
+
+    function buildAlgoCheckboxes() {
+        const container = document.getElementById('algoCheckboxes');
+        container.innerHTML = '';
+        
+        for (const [key, algo] of Object.entries(ALGORITHMS)) {
+            const label = document.createElement('label');
+            label.className = 'algo-checkbox' + (selectedAlgos.includes(key) ? ' selected' : '');
+            label.innerHTML = `
+                <input type="checkbox" value="${key}" ${selectedAlgos.includes(key) ? 'checked' : ''}>
+                <span class="algo-dot" style="background: ${algo.color};"></span>
+                <span>${algo.shortName}</span>
+            `;
+            label.addEventListener('click', (e) => {
+                if (e.target.tagName === 'INPUT') return;
+                const cb = label.querySelector('input');
+                cb.checked = !cb.checked;
+                label.classList.toggle('selected', cb.checked);
+                updateSelectedAlgos();
+            });
+            label.querySelector('input').addEventListener('change', () => {
+                label.classList.toggle('selected', label.querySelector('input').checked);
+                updateSelectedAlgos();
+            });
+            container.appendChild(label);
+        }
+    }
+
+    function updateSelectedAlgos() {
+        selectedAlgos = [...document.querySelectorAll('.algo-checkbox input:checked')].map(cb => cb.value);
+        reset();
+    }
+
+    function buildAlgoInfoGrid() {
+        const grid = document.getElementById('algoInfoGrid');
+        grid.innerHTML = '';
+        
+        for (const [key, algo] of Object.entries(ALGORITHMS)) {
+            grid.innerHTML += `
+                <div class="algo-info-card" style="border-left-color: ${algo.color};">
+                    <h4>${algo.name}</h4>
+                    <p>
+                        ${algo.desc}<br>
+                        <code>収束: ${algo.convergence}</code> | 
+                        <code>計算量: ${algo.complexity}</code><br>
+                        MATPOWER: <code>${algo.matpower}</code>
+                    </p>
+                </div>
+            `;
+        }
+    }
+
+    function loadCase() {
+        const caseName = document.getElementById('caseSelect').value;
+        currentCase = MATPOWER_CASES[caseName];
+        reset();
+    }
+
+    function reset() {
+        running = false;
+        engines = {};
+        
+        for (const algo of selectedAlgos) {
+            engines[algo] = new PowerFlowEngine(currentCase);
+        }
+        
+        updateFlowDiagram('init');
+        updateResults();
+        drawAll();
+    }
+
+    async function runAll() {
+        if (running) return;
+        running = true;
+        
+        const tolerance = parseFloat(document.getElementById('tolSelect').value);
+        const maxIter = parseInt(document.getElementById('maxIterInput').value);
+        const speed = parseFloat(document.getElementById('speedSelect').value);
+        
+        document.getElementById('runBtn').disabled = true;
+        
+        while (running) {
+            let allDone = true;
+            
+            for (const algo of selectedAlgos) {
+                const engine = engines[algo];
+                if (engine.converged || engine.diverged || engine.iteration >= maxIter) continue;
+                
+                allDone = false;
+                const result = engine.runIteration(algo);
+                
+                if (result.maxError < tolerance) {
+                    engine.converged = true;
+                    engine.currentStep = 'done';
+                } else if (!isFinite(result.maxError) || engine.iteration >= maxIter) {
+                    engine.diverged = true;
+                }
+            }
+            
+            // Update flow diagram for first non-converged algorithm
+            const activeAlgo = selectedAlgos.find(a => !engines[a].converged && !engines[a].diverged);
+            if (activeAlgo) updateFlowDiagram(engines[activeAlgo].currentStep);
+            
+            updateResults();
+            drawAll();
+            
+            if (allDone) break;
+            if (speed > 0) await new Promise(r => setTimeout(r, 300 / speed));
+        }
+        
+        running = false;
+        document.getElementById('runBtn').disabled = false;
+        updateFlowDiagram('done');
+    }
+
+    async function stepAll() {
+        if (running) return;
+        
+        const tolerance = parseFloat(document.getElementById('tolSelect').value);
+        
+        for (const algo of selectedAlgos) {
+            const engine = engines[algo];
+            if (engine.converged || engine.diverged) continue;
+            
+            const result = engine.runIteration(algo);
+            if (result.maxError < tolerance) {
+                engine.converged = true;
+                engine.currentStep = 'done';
+            } else if (!isFinite(result.maxError)) {
+                engine.diverged = true;
+            }
+        }
+        
+        updateResults();
+        drawAll();
+        
+        const activeAlgo = selectedAlgos.find(a => !engines[a].converged && !engines[a].diverged);
+        if (activeAlgo) updateFlowDiagram(engines[activeAlgo].currentStep);
+        else updateFlowDiagram('done');
+    }
+
+    function updateFlowDiagram(activeStep) {
+        document.querySelectorAll('.flow-step').forEach(step => {
+            step.classList.remove('active', 'completed');
+            const stepName = step.dataset.step;
+            if (stepName === activeStep) {
+                step.classList.add('active');
+            } else if (['init'].includes(stepName) && activeStep !== 'init') {
+                step.classList.add('completed');
+            }
+        });
+    }
+
+    function updateResults() {
+        const resultsDiv = document.getElementById('algoResults');
+        const tbody = document.getElementById('comparisonBody');
+        resultsDiv.innerHTML = '';
+        tbody.innerHTML = '';
+        
+        const results = [];
+        
+        for (const algo of selectedAlgos) {
+            const engine = engines[algo];
+            const algoInfo = ALGORITHMS[algo];
+            
+            let status = 'waiting';
+            let statusText = '待機中';
+            if (engine.converged) { status = 'converged'; statusText = '収束'; }
+            else if (engine.diverged) { status = 'diverged'; statusText = '発散'; }
+            else if (engine.iteration > 0) { status = 'running'; statusText = '実行中'; }
+            
+            results.push({
+                algo, name: algoInfo.name, shortName: algoInfo.shortName, color: algoInfo.color,
+                iteration: engine.iteration, error: Math.max(engine.maxPError, engine.maxQError),
+                status, statusText, converged: engine.converged
+            });
+            
+            resultsDiv.innerHTML += `
+                <div class="algo-result ${status}">
+                    <div class="algo-result-header">
+                        <span class="algo-result-name">
+                            <span class="algo-dot" style="background: ${algoInfo.color}; width: 8px; height: 8px; border-radius: 50%; display: inline-block;"></span>
+                            ${algoInfo.shortName}
+                        </span>
+                        <span class="algo-result-status ${status}">${statusText}</span>
+                    </div>
+                    <div class="algo-result-stats">
+                        <div class="algo-stat">
+                            <span class="algo-stat-label">反復</span>
+                            <span class="algo-stat-value">${engine.iteration}</span>
+                        </div>
+                        <div class="algo-stat">
+                            <span class="algo-stat-label">誤差</span>
+                            <span class="algo-stat-value">${isFinite(engine.maxPError) ? engine.maxPError.toExponential(2) : '∞'}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Sort by iteration count for ranking
+        const sorted = [...results].filter(r => r.converged).sort((a, b) => a.iteration - b.iteration);
+        
+        results.forEach((r, idx) => {
+            const rank = sorted.findIndex(s => s.algo === r.algo);
+            const rankClass = rank === 0 ? 'rank-1' : rank === 1 ? 'rank-2' : rank === 2 ? 'rank-3' : '';
+            
+            tbody.innerHTML += `
+                <tr>
+                    <td><span class="algo-dot" style="background: ${r.color}; width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px;"></span>${r.shortName}</td>
+                    <td class="${rankClass}">${r.iteration}</td>
+                    <td>${isFinite(r.error) ? r.error.toExponential(1) : '∞'}</td>
+                    <td><span class="algo-result-status ${r.status}">${r.statusText}</span></td>
+                </tr>
+            `;
+        });
+    }
+
+    function drawAll() {
+        drawConvergence();
+        drawIterationBar();
+        drawNetwork();
+        drawVoltageProfile();
+    }
+
+    function drawConvergence() {
+        const canvas = document.getElementById('convergenceCanvas');
+        const ctx = canvas.getContext('2d');
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = rect.width - 24;
+        canvas.height = rect.height - 24;
+        
+        const w = canvas.width, h = canvas.height;
+        const padding = { top: 20, right: 20, bottom: 30, left: 50 };
+        
+        ctx.fillStyle = '#12121a';
+        ctx.fillRect(0, 0, w, h);
+        
+        const tolerance = parseFloat(document.getElementById('tolSelect').value);
+        let allData = [];
+        
+        for (const algo of selectedAlgos) {
+            const history = engines[algo].errorHistory;
+            if (history.length > 0) allData.push(...history.map(h => h.max));
+        }
+        
+        if (allData.length === 0) {
+            ctx.fillStyle = '#64748b';
+            ctx.font = '12px JetBrains Mono';
+            ctx.textAlign = 'center';
+            ctx.fillText('実行すると収束曲線が表示されます', w / 2, h / 2);
+            return;
+        }
+        
+        const validData = allData.filter(d => isFinite(d) && d > 0);
+        const minLog = Math.min(Math.log10(tolerance) - 1, ...validData.map(d => Math.log10(d))) - 0.5;
+        const maxLog = Math.max(...validData.map(d => Math.log10(d))) + 0.5;
+        const maxIter = Math.max(...selectedAlgos.map(a => engines[a].iteration), 1);
+        
+        const plotW = w - padding.left - padding.right;
+        const plotH = h - padding.top - padding.bottom;
+        
+        // Tolerance line
+        const tolY = padding.top + (maxLog - Math.log10(tolerance)) / (maxLog - minLog) * plotH;
+        ctx.strokeStyle = 'rgba(239, 68, 68, 0.5)';
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.moveTo(padding.left, tolY);
+        ctx.lineTo(w - padding.right, tolY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        
+        ctx.fillStyle = '#ef4444';
+        ctx.font = '9px JetBrains Mono';
+        ctx.fillText('ε', w - padding.right + 5, tolY + 3);
+        
+        // Draw curves
+        for (const algo of selectedAlgos) {
+            const history = engines[algo].errorHistory;
+            if (history.length === 0) continue;
+            
+            const color = ALGORITHMS[algo].color;
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            
+            history.forEach((d, i) => {
+                if (!isFinite(d.max) || d.max <= 0) return;
+                const x = padding.left + (d.iteration / maxIter) * plotW;
+                const y = padding.top + (maxLog - Math.log10(d.max)) / (maxLog - minLog) * plotH;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+            
+            // Points
+            ctx.fillStyle = color;
+            history.forEach((d, i) => {
+                if (!isFinite(d.max) || d.max <= 0) return;
+                const x = padding.left + (d.iteration / maxIter) * plotW;
+                const y = padding.top + (maxLog - Math.log10(d.max)) / (maxLog - minLog) * plotH;
+                ctx.beginPath();
+                ctx.arc(x, y, 3, 0, 2 * Math.PI);
+                ctx.fill();
+            });
+        }
+        
+        // Axes
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '10px JetBrains Mono';
+        ctx.textAlign = 'center';
+        ctx.fillText('反復回数', w / 2, h - 5);
+    }
+
+    function drawIterationBar() {
+        const canvas = document.getElementById('iterationCanvas');
+        const ctx = canvas.getContext('2d');
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = rect.width - 24;
+        canvas.height = rect.height - 24;
+        
+        const w = canvas.width, h = canvas.height;
+        const padding = { top: 30, right: 20, bottom: 40, left: 50 };
+        
+        ctx.fillStyle = '#12121a';
+        ctx.fillRect(0, 0, w, h);
+        
+        const plotW = w - padding.left - padding.right;
+        const plotH = h - padding.top - padding.bottom;
+        
+        const maxIter = Math.max(...selectedAlgos.map(a => engines[a].iteration), 1);
+        const barWidth = Math.min(plotW / selectedAlgos.length - 10, 60);
+        const gap = (plotW - barWidth * selectedAlgos.length) / (selectedAlgos.length + 1);
+        
+        selectedAlgos.forEach((algo, i) => {
+            const engine = engines[algo];
+            const color = ALGORITHMS[algo].color;
+            const x = padding.left + gap + i * (barWidth + gap);
+            const barH = (engine.iteration / maxIter) * plotH;
+            const y = padding.top + plotH - barH;
+            
+            // Bar
+            ctx.fillStyle = color;
+            ctx.fillRect(x, y, barWidth, barH);
+            
+            // Iteration count on top
+            ctx.fillStyle = '#f1f5f9';
+            ctx.font = 'bold 12px JetBrains Mono';
+            ctx.textAlign = 'center';
+            ctx.fillText(engine.iteration, x + barWidth / 2, y - 5);
+            
+            // Label
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '10px JetBrains Mono';
+            ctx.fillText(ALGORITHMS[algo].shortName, x + barWidth / 2, h - padding.bottom + 15);
+            
+            // Status icon
+            let icon = '⏳';
+            if (engine.converged) icon = '✓';
+            else if (engine.diverged) icon = '✗';
+            ctx.fillText(icon, x + barWidth / 2, h - padding.bottom + 28);
+        });
+        
+        // Y-axis
+        ctx.fillStyle = '#64748b';
+        ctx.font = '9px JetBrains Mono';
+        ctx.textAlign = 'right';
+        for (let i = 0; i <= 4; i++) {
+            const val = Math.round(maxIter * i / 4);
+            const y = padding.top + plotH - (i / 4) * plotH;
+            ctx.fillText(val, padding.left - 5, y + 3);
+        }
+    }
+
+    function drawNetwork() {
+        const canvas = document.getElementById('networkCanvas');
+        const ctx = canvas.getContext('2d');
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = rect.width - 24;
+        canvas.height = rect.height - 24;
+        
+        const w = canvas.width, h = canvas.height;
+        ctx.fillStyle = '#12121a';
+        ctx.fillRect(0, 0, w, h);
+        
+        // Use first algorithm's results
+        const firstAlgo = selectedAlgos[0];
+        if (!engines[firstAlgo]) return;
+        
+        const engine = engines[firstAlgo];
+        const results = engine.getBusResults();
+        const n = engine.nBus;
+        
+        const cx = w / 2, cy = h / 2;
+        const radius = Math.min(w, h) * 0.35;
+        
+        const positions = results.map((_, i) => ({
+            x: cx + radius * Math.cos(2 * Math.PI * i / n - Math.PI / 2),
+            y: cy + radius * Math.sin(2 * Math.PI * i / n - Math.PI / 2)
+        }));
+        
+        // Branches
+        ctx.strokeStyle = 'rgba(59, 130, 246, 0.4)';
+        ctx.lineWidth = 2;
+        engine.branchData.forEach(branch => {
+            const from = positions[branch[0] - 1];
+            const to = positions[branch[1] - 1];
+            if (from && to) {
+                ctx.beginPath();
+                ctx.moveTo(from.x, from.y);
+                ctx.lineTo(to.x, to.y);
+                ctx.stroke();
+            }
+        });
+        
+        // Nodes
+        const nodeRadius = n > 20 ? 10 : 14;
+        results.forEach((bus, i) => {
+            const pos = positions[i];
+            
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y, nodeRadius, 0, 2 * Math.PI);
+            ctx.fillStyle = bus.type === 'Slack' ? '#10b981' : bus.type === 'PV' ? '#f59e0b' : '#3b82f6';
+            ctx.fill();
+            ctx.strokeStyle = '#f1f5f9';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            
+            ctx.fillStyle = '#0a0a0f';
+            ctx.font = `bold ${nodeRadius * 0.7}px JetBrains Mono`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(bus.bus, pos.x, pos.y);
+        });
+    }
+
+    function drawVoltageProfile() {
+        const canvas = document.getElementById('voltageCanvas');
+        const ctx = canvas.getContext('2d');
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = rect.width - 24;
+        canvas.height = rect.height - 24;
+        
+        const w = canvas.width, h = canvas.height;
+        const padding = { top: 20, right: 20, bottom: 30, left: 45 };
+        
+        ctx.fillStyle = '#12121a';
+        ctx.fillRect(0, 0, w, h);
+        
+        const firstAlgo = selectedAlgos[0];
+        if (!engines[firstAlgo]) return;
+        
+        const results = engines[firstAlgo].getBusResults();
+        const voltages = results.map(r => r.V);
+        
+        const minV = Math.min(...voltages, 0.9);
+        const maxV = Math.max(...voltages, 1.1);
+        
+        const plotW = w - padding.left - padding.right;
+        const plotH = h - padding.top - padding.bottom;
+        const barWidth = Math.max(plotW / results.length - 2, 4);
+        
+        // Safe zone
+        const v095Y = padding.top + (maxV - 0.95) / (maxV - minV) * plotH;
+        const v105Y = padding.top + (maxV - 1.05) / (maxV - minV) * plotH;
+        ctx.fillStyle = 'rgba(34, 197, 94, 0.1)';
+        ctx.fillRect(padding.left, v105Y, plotW, v095Y - v105Y);
+        
+        // Bars
+        results.forEach((bus, i) => {
+            const x = padding.left + i * (barWidth + 2);
+            const barH = (bus.V - minV) / (maxV - minV) * plotH;
+            const y = padding.top + plotH - barH;
+            
+            ctx.fillStyle = bus.type === 'Slack' ? '#10b981' : bus.type === 'PV' ? '#f59e0b' : '#3b82f6';
+            ctx.fillRect(x, y, barWidth, barH);
+        });
+        
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '10px JetBrains Mono';
+        ctx.textAlign = 'center';
+        ctx.fillText('ノード', w / 2, h - 5);
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

@@ -1,0 +1,1566 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>潮流計算アルゴリズム可視化</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0e14;
+            --bg-secondary: #131920;
+            --bg-tertiary: #1a2129;
+            --accent-cyan: #00d4ff;
+            --accent-green: #00ff88;
+            --accent-orange: #ff9500;
+            --accent-red: #ff4757;
+            --accent-purple: #a855f7;
+            --accent-yellow: #ffd700;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --border-color: #30363d;
+            --grid-color: rgba(0, 212, 255, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans JP', 'JetBrains Mono', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(var(--grid-color) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 30px 0;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+            letter-spacing: -1px;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .control-panel {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .control-group label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-family: 'JetBrains Mono', monospace;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .control-group input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            background: var(--bg-tertiary);
+            border-radius: 3px;
+            outline: none;
+        }
+
+        .control-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: var(--accent-cyan);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px var(--accent-cyan);
+        }
+
+        .control-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.2rem;
+            color: var(--accent-cyan);
+            font-weight: 600;
+        }
+
+        .btn {
+            font-family: 'JetBrains Mono', monospace;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-green));
+            color: var(--bg-primary);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 212, 255, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--accent-cyan);
+        }
+
+        .algorithm-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .algorithm-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .algorithm-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--card-accent, var(--accent-cyan));
+        }
+
+        .algorithm-card:hover {
+            border-color: var(--card-accent, var(--accent-cyan));
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .algorithm-card.running {
+            border-color: var(--accent-yellow);
+            animation: pulse 1s infinite;
+        }
+
+        .algorithm-card.completed {
+            border-color: var(--accent-green);
+        }
+
+        .algorithm-card.failed {
+            border-color: var(--accent-red);
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.4); }
+            50% { box-shadow: 0 0 20px 5px rgba(255, 215, 0, 0.2); }
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .algorithm-name {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .algorithm-category {
+            font-size: 0.7rem;
+            padding: 3px 8px;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+            color: var(--card-accent, var(--accent-cyan));
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .convergence-chart {
+            width: 100%;
+            height: 120px;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            margin-bottom: 15px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .convergence-chart canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 8px;
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+        }
+
+        .stat-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--accent-cyan);
+        }
+
+        .stat-label {
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 2px;
+        }
+
+        .formula-section {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+
+        .formula-section h2 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            color: var(--accent-cyan);
+        }
+
+        .formula-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 15px;
+        }
+
+        .formula-card {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 15px;
+            border-left: 3px solid var(--accent-purple);
+        }
+
+        .formula-title {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .formula-content {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            line-height: 1.8;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+
+        .formula-content .math {
+            color: var(--accent-green);
+        }
+
+        .formula-content .variable {
+            color: var(--accent-orange);
+        }
+
+        .comparison-section {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+
+        .comparison-section h2 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            color: var(--accent-cyan);
+        }
+
+        .chart-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .chart-box {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 20px;
+            height: 300px;
+        }
+
+        .chart-box h3 {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-bottom: 15px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .chart-box canvas {
+            width: 100%;
+            height: calc(100% - 30px);
+        }
+
+        .network-section {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+
+        .network-section h2 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            color: var(--accent-cyan);
+        }
+
+        #network-canvas {
+            width: 100%;
+            height: 400px;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+        }
+
+        .results-section {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+            overflow-x: auto;
+        }
+
+        .results-section h2 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            color: var(--accent-cyan);
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+        }
+
+        .results-table th,
+        .results-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .results-table th {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 500;
+        }
+
+        .results-table tr:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .rank-badge {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            line-height: 24px;
+            text-align: center;
+            border-radius: 50%;
+            font-weight: 600;
+            font-size: 0.75rem;
+        }
+
+        .rank-1 { background: var(--accent-yellow); color: var(--bg-primary); }
+        .rank-2 { background: #c0c0c0; color: var(--bg-primary); }
+        .rank-3 { background: #cd7f32; color: var(--bg-primary); }
+
+        .status-badge {
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+        }
+
+        .status-converged { background: rgba(0, 255, 136, 0.2); color: var(--accent-green); }
+        .status-diverged { background: rgba(255, 71, 87, 0.2); color: var(--accent-red); }
+        .status-running { background: rgba(255, 215, 0, 0.2); color: var(--accent-yellow); }
+
+        .progress-container {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-cyan), var(--accent-green));
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            display: flex;
+            justify-content: space-between;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+        }
+
+        .tab-nav {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        .tab-btn {
+            padding: 10px 20px;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            cursor: pointer;
+            border-radius: 6px 6px 0 0;
+            transition: all 0.3s ease;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-primary);
+            background: var(--bg-tertiary);
+        }
+
+        .tab-btn.active {
+            color: var(--accent-cyan);
+            background: var(--bg-tertiary);
+            border-bottom: 2px solid var(--accent-cyan);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .speed-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+        }
+
+        .speed-btn:hover {
+            border-color: var(--accent-cyan);
+            color: var(--accent-cyan);
+        }
+
+        .speed-btn.active {
+            background: var(--accent-cyan);
+            color: var(--bg-primary);
+            border-color: var(--accent-cyan);
+        }
+
+        @media (max-width: 768px) {
+            .chart-container {
+                grid-template-columns: 1fr;
+            }
+            .algorithm-grid {
+                grid-template-columns: 1fr;
+            }
+            .formula-grid {
+                grid-template-columns: 1fr;
+            }
+            h1 {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>⚡ 潮流計算アルゴリズム可視化</h1>
+            <p class="subtitle">Power Flow Algorithm Visualizer - 20 Methods Comparison</p>
+        </header>
+
+        <div class="control-panel">
+            <div class="control-group">
+                <label>ノード数 (Buses)</label>
+                <input type="range" id="nodeCount" min="3" max="30" value="9">
+                <span class="control-value" id="nodeCountValue">9</span>
+            </div>
+            <div class="control-group">
+                <label>ブランチ数 (Branches)</label>
+                <input type="range" id="branchCount" min="2" max="50" value="12">
+                <span class="control-value" id="branchCountValue">12</span>
+            </div>
+            <div class="control-group">
+                <label>収束判定 (Tolerance)</label>
+                <input type="range" id="tolerance" min="-8" max="-2" value="-6">
+                <span class="control-value" id="toleranceValue">10⁻⁶</span>
+            </div>
+            <div class="control-group">
+                <label>最大反復回数</label>
+                <input type="range" id="maxIterations" min="10" max="500" value="100">
+                <span class="control-value" id="maxIterationsValue">100</span>
+            </div>
+            <div class="control-group">
+                <label>アニメーション速度</label>
+                <div class="speed-control">
+                    <button class="speed-btn" data-speed="0.5">0.5x</button>
+                    <button class="speed-btn active" data-speed="1">1x</button>
+                    <button class="speed-btn" data-speed="2">2x</button>
+                    <button class="speed-btn" data-speed="5">5x</button>
+                </div>
+            </div>
+            <div class="control-group" style="justify-content: flex-end;">
+                <button class="btn btn-primary" id="runAll">▶ 全アルゴリズム実行</button>
+                <button class="btn btn-secondary" id="reset">↺ リセット</button>
+            </div>
+        </div>
+
+        <div class="progress-container" id="progressContainer" style="display: none;">
+            <div class="progress-text">
+                <span id="progressText">実行中...</span>
+                <span id="progressPercent">0%</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%;"></div>
+            </div>
+        </div>
+
+        <div class="tab-nav">
+            <button class="tab-btn active" data-tab="algorithms">アルゴリズム比較</button>
+            <button class="tab-btn" data-tab="formulas">数式</button>
+            <button class="tab-btn" data-tab="network">系統図</button>
+            <button class="tab-btn" data-tab="results">結果一覧</button>
+        </div>
+
+        <div class="tab-content active" id="tab-algorithms">
+            <div class="algorithm-grid" id="algorithmGrid"></div>
+            <div class="comparison-section">
+                <h2>📊 比較チャート</h2>
+                <div class="chart-container">
+                    <div class="chart-box">
+                        <h3>反復回数 vs 精度</h3>
+                        <canvas id="iterationChart"></canvas>
+                    </div>
+                    <div class="chart-box">
+                        <h3>計算時間比較</h3>
+                        <canvas id="timeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-content" id="tab-formulas">
+            <div class="formula-section">
+                <h2>📐 潮流計算の基本方程式</h2>
+                <div class="formula-grid" id="formulaGrid"></div>
+            </div>
+        </div>
+
+        <div class="tab-content" id="tab-network">
+            <div class="network-section">
+                <h2>🔌 電力系統図</h2>
+                <canvas id="network-canvas"></canvas>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: var(--accent-green);"></div>
+                        <span>Slack Bus</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: var(--accent-orange);"></div>
+                        <span>PV Bus (Generator)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: var(--accent-cyan);"></div>
+                        <span>PQ Bus (Load)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-content" id="tab-results">
+            <div class="results-section">
+                <h2>📋 アルゴリズム性能比較</h2>
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>順位</th>
+                            <th>アルゴリズム</th>
+                            <th>カテゴリ</th>
+                            <th>反復回数</th>
+                            <th>最終誤差</th>
+                            <th>計算時間</th>
+                            <th>状態</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultsBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const algorithms = [
+            { id: 'gauss-seidel', name: 'Gauss-Seidel法', category: '反復法', color: '#00d4ff' },
+            { id: 'newton-raphson-polar', name: 'Newton-Raphson法 (極座標)', category: 'Newton系', color: '#00ff88' },
+            { id: 'newton-raphson-rect', name: 'Newton-Raphson法 (直交座標)', category: 'Newton系', color: '#22c55e' },
+            { id: 'fast-decoupled-xb', name: 'Fast Decoupled法 (XB)', category: '簡略化Newton', color: '#ff9500' },
+            { id: 'fast-decoupled-bx', name: 'Fast Decoupled法 (BX)', category: '簡略化Newton', color: '#f97316' },
+            { id: 'dc-power-flow', name: 'DC潮流計算', category: '線形近似', color: '#ffd700' },
+            { id: 'gauss', name: 'Gauss法 (Jacobi型)', category: '反復法', color: '#38bdf8' },
+            { id: 'z-bus-gauss', name: 'Z-bus Gauss法', category: '反復法', color: '#0ea5e9' },
+            { id: 'levenberg-marquardt', name: 'Levenberg-Marquardt法', category: '最適化系', color: '#a855f7' },
+            { id: 'iwamoto', name: 'Iwamoto修正NR法', category: 'Newton系', color: '#10b981' },
+            { id: 'continuation', name: '連続潮流計算 (CPF)', category: '特殊用途', color: '#ec4899' },
+            { id: 'holomorphic', name: 'Holomorphic Embedding法', category: '数学的手法', color: '#8b5cf6' },
+            { id: 'backward-forward', name: 'Backward/Forward Sweep', category: '放射状系統', color: '#06b6d4' },
+            { id: 'quasi-newton', name: 'Quasi-Newton法 (Broyden)', category: 'Newton系', color: '#14b8a6' },
+            { id: 'jacobi', name: 'Jacobi法', category: '反復法', color: '#64748b' },
+            { id: 'sor', name: 'SOR法 (逐次過緩和)', category: '反復法', color: '#78716c' },
+            { id: 'current-injection', name: 'Current Injection法', category: 'Newton系', color: '#84cc16' },
+            { id: 'implicit-zbus', name: 'Implicit Z-bus法', category: '反復法', color: '#22d3ee' },
+            { id: 'modified-gs', name: '修正Gauss-Seidel法', category: '反復法', color: '#67e8f9' },
+            { id: 'second-order-nr', name: '2次Newton-Raphson法', category: 'Newton系', color: '#4ade80' }
+        ];
+
+        const formulas = [
+            {
+                title: '潮流方程式（極座標）',
+                content: `<span class="variable">P_i</span> = <span class="math">Σ</span> |<span class="variable">V_i</span>||<span class="variable">V_j</span>||<span class="variable">Y_ij</span>| cos(<span class="variable">θ_ij</span> - <span class="variable">δ_i</span> + <span class="variable">δ_j</span>)
+<span class="variable">Q_i</span> = <span class="math">Σ</span> |<span class="variable">V_i</span>||<span class="variable">V_j</span>||<span class="variable">Y_ij</span>| sin(<span class="variable">θ_ij</span> - <span class="variable">δ_i</span> + <span class="variable">δ_j</span>)`
+            },
+            {
+                title: 'Newton-Raphsonヤコビアン',
+                content: `<span class="variable">J</span> = [<span class="math">∂P/∂δ</span>  <span class="math">∂P/∂V</span>]
+    [<span class="math">∂Q/∂δ</span>  <span class="math">∂Q/∂V</span>]
+
+[<span class="variable">Δδ</span>]     [<span class="variable">ΔP</span>]
+[<span class="variable">ΔV</span>] = -<span class="variable">J</span>⁻¹ × [<span class="variable">ΔQ</span>]`
+            },
+            {
+                title: 'Fast Decoupled法',
+                content: `<span class="variable">B'</span> × <span class="variable">Δδ</span> = <span class="variable">ΔP</span>/<span class="variable">V</span>
+<span class="variable">B"</span> × <span class="variable">ΔV</span> = <span class="variable">ΔQ</span>/<span class="variable">V</span>
+
+仮定: <span class="math">cos(δ_i - δ_j) ≈ 1</span>
+      <span class="math">G_ij sin(δ_i - δ_j) ≈ 0</span>`
+            },
+            {
+                title: 'DC潮流計算',
+                content: `<span class="variable">P</span> = <span class="variable">B</span> × <span class="variable">δ</span>
+
+仮定: |<span class="variable">V</span>| = 1.0 p.u.
+      <span class="math">sin(δ_i - δ_j) ≈ δ_i - δ_j</span>
+      <span class="variable">r</span> << <span class="variable">x</span> (抵抗無視)`
+            },
+            {
+                title: 'Gauss-Seidel更新式',
+                content: `<span class="variable">V_i</span>^(k+1) = 1/<span class="variable">Y_ii</span> × [
+  (<span class="variable">P_i</span> - j<span class="variable">Q_i</span>)/<span class="variable">V_i</span>^(k)* 
+  - <span class="math">Σ</span>_{j<i} <span class="variable">Y_ij</span><span class="variable">V_j</span>^(k+1)
+  - <span class="math">Σ</span>_{j>i} <span class="variable">Y_ij</span><span class="variable">V_j</span>^(k)
+]`
+            },
+            {
+                title: 'アドミタンス行列',
+                content: `<span class="variable">Y_bus</span> = [<span class="variable">Y_ij</span>]
+
+対角要素: <span class="variable">Y_ii</span> = <span class="math">Σ</span> <span class="variable">y_ij</span> + <span class="variable">y_i0</span>
+非対角:   <span class="variable">Y_ij</span> = -<span class="variable">y_ij</span>
+
+<span class="variable">y_ij</span> = 1/(<span class="variable">r_ij</span> + j<span class="variable">x_ij</span>)`
+            },
+            {
+                title: 'Levenberg-Marquardt法',
+                content: `<span class="variable">Δx</span> = -(<span class="variable">J</span>ᵀ<span class="variable">J</span> + <span class="variable">λI</span>)⁻¹ × <span class="variable">J</span>ᵀ × <span class="variable">f</span>(<span class="variable">x</span>)
+
+<span class="variable">λ</span> → 0: Newton法に近づく
+<span class="variable">λ</span> → ∞: 勾配降下法に近づく`
+            },
+            {
+                title: '連続潮流計算 (CPF)',
+                content: `拡張方程式:
+<span class="variable">f</span>(<span class="variable">x</span>, <span class="variable">λ</span>) = 0
+<span class="variable">g</span>(<span class="variable">x</span>, <span class="variable">λ</span>) = 0 (パラメータ化)
+
+[<span class="variable">J_f</span>  <span class="variable">f_λ</span>] [<span class="variable">Δx</span>]   [<span class="variable">Δf</span>]
+[<span class="variable">g_x</span>  <span class="variable">g_λ</span>] [<span class="variable">Δλ</span>] = [<span class="variable">Δg</span>]`
+            },
+            {
+                title: '収束判定条件',
+                content: `ミスマッチ基準:
+  max(|<span class="variable">ΔP</span>|) < <span class="variable">ε_P</span>
+  max(|<span class="variable">ΔQ</span>|) < <span class="variable">ε_Q</span>
+
+典型値: <span class="variable">ε</span> = 10⁻⁶ ~ 10⁻⁸ p.u.`
+            },
+            {
+                title: 'Iwamoto最適乗数',
+                content: `<span class="variable">x</span>^(k+1) = <span class="variable">x</span>^(k) + <span class="variable">μ</span>* × <span class="variable">Δx</span>
+
+<span class="variable">μ</span>* = -<span class="variable">g₁</span> / (2<span class="variable">g₂</span>)
+
+<span class="variable">g</span>(<span class="variable">μ</span>) = <span class="variable">g₀</span> + <span class="variable">g₁μ</span> + <span class="variable">g₂μ</span>²`
+            },
+            {
+                title: 'Broyden更新',
+                content: `<span class="variable">B</span>^(k+1) = <span class="variable">B</span>^(k) + 
+  (<span class="variable">Δf</span> - <span class="variable">B</span>^(k)<span class="variable">Δx</span>) × <span class="variable">Δx</span>ᵀ
+  ─────────────────────────
+        <span class="variable">Δx</span>ᵀ × <span class="variable">Δx</span>`
+            },
+            {
+                title: 'SOR緩和係数',
+                content: `<span class="variable">x</span>^(k+1) = <span class="variable">x</span>^(k) + <span class="variable">ω</span>(<span class="variable">x</span>_GS - <span class="variable">x</span>^(k))
+
+最適<span class="variable">ω</span>: 1 < <span class="variable">ω</span> < 2
+<span class="variable">ω</span> = 1: Gauss-Seidel
+<span class="variable">ω</span> > 1: 過緩和 (加速)`
+            }
+        ];
+
+        let state = {
+            nodeCount: 9,
+            branchCount: 12,
+            tolerance: 1e-6,
+            maxIterations: 100,
+            animationSpeed: 1,
+            running: false,
+            results: {},
+            network: null
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initControls();
+            initTabs();
+            generateAlgorithmCards();
+            generateFormulas();
+            generateNetwork();
+            drawNetworkCanvas();
+        });
+
+        function initControls() {
+            const nodeSlider = document.getElementById('nodeCount');
+            const nodeValue = document.getElementById('nodeCountValue');
+            nodeSlider.addEventListener('input', (e) => {
+                state.nodeCount = parseInt(e.target.value);
+                nodeValue.textContent = state.nodeCount;
+                updateBranchLimit();
+                generateNetwork();
+                drawNetworkCanvas();
+            });
+
+            const branchSlider = document.getElementById('branchCount');
+            const branchValue = document.getElementById('branchCountValue');
+            branchSlider.addEventListener('input', (e) => {
+                state.branchCount = parseInt(e.target.value);
+                branchValue.textContent = state.branchCount;
+                generateNetwork();
+                drawNetworkCanvas();
+            });
+
+            const tolSlider = document.getElementById('tolerance');
+            const tolValue = document.getElementById('toleranceValue');
+            tolSlider.addEventListener('input', (e) => {
+                const exp = parseInt(e.target.value);
+                state.tolerance = Math.pow(10, exp);
+                tolValue.textContent = `10${superscript(exp)}`;
+            });
+
+            const iterSlider = document.getElementById('maxIterations');
+            const iterValue = document.getElementById('maxIterationsValue');
+            iterSlider.addEventListener('input', (e) => {
+                state.maxIterations = parseInt(e.target.value);
+                iterValue.textContent = state.maxIterations;
+            });
+
+            document.querySelectorAll('.speed-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+                    e.target.classList.add('active');
+                    state.animationSpeed = parseFloat(e.target.dataset.speed);
+                });
+            });
+
+            document.getElementById('runAll').addEventListener('click', runAllAlgorithms);
+            document.getElementById('reset').addEventListener('click', resetAll);
+        }
+
+        function superscript(num) {
+            const superscripts = {'0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', 
+                                  '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹', '-': '⁻'};
+            return String(num).split('').map(c => superscripts[c] || c).join('');
+        }
+
+        function updateBranchLimit() {
+            const maxBranches = state.nodeCount * (state.nodeCount - 1) / 2;
+            const branchSlider = document.getElementById('branchCount');
+            branchSlider.max = Math.min(50, maxBranches);
+            if (state.branchCount > maxBranches) {
+                state.branchCount = maxBranches;
+                branchSlider.value = maxBranches;
+                document.getElementById('branchCountValue').textContent = maxBranches;
+            }
+        }
+
+        function initTabs() {
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    e.target.classList.add('active');
+                    document.getElementById(`tab-${e.target.dataset.tab}`).classList.add('active');
+                    if (e.target.dataset.tab === 'network') {
+                        setTimeout(drawNetworkCanvas, 100);
+                    }
+                });
+            });
+        }
+
+        function generateAlgorithmCards() {
+            const grid = document.getElementById('algorithmGrid');
+            grid.innerHTML = '';
+
+            algorithms.forEach(algo => {
+                const card = document.createElement('div');
+                card.className = 'algorithm-card';
+                card.id = `card-${algo.id}`;
+                card.style.setProperty('--card-accent', algo.color);
+
+                card.innerHTML = `
+                    <div class="card-header">
+                        <div class="algorithm-name">${algo.name}</div>
+                        <div class="algorithm-category">${algo.category}</div>
+                    </div>
+                    <div class="convergence-chart">
+                        <canvas id="chart-${algo.id}"></canvas>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-value" id="iter-${algo.id}">-</div>
+                            <div class="stat-label">反復</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="error-${algo.id}">-</div>
+                            <div class="stat-label">誤差</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="time-${algo.id}">-</div>
+                            <div class="stat-label">時間(ms)</div>
+                        </div>
+                    </div>
+                `;
+
+                grid.appendChild(card);
+            });
+        }
+
+        function generateFormulas() {
+            const grid = document.getElementById('formulaGrid');
+            grid.innerHTML = '';
+
+            formulas.forEach(formula => {
+                const card = document.createElement('div');
+                card.className = 'formula-card';
+                card.innerHTML = `
+                    <div class="formula-title">${formula.title}</div>
+                    <pre class="formula-content">${formula.content}</pre>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function generateNetwork() {
+            const n = state.nodeCount;
+            const m = state.branchCount;
+
+            const nodes = [];
+            for (let i = 0; i < n; i++) {
+                let type = 'PQ';
+                if (i === 0) type = 'Slack';
+                else if (i < Math.ceil(n * 0.3)) type = 'PV';
+
+                nodes.push({
+                    id: i,
+                    type: type,
+                    voltage: 1.0,
+                    angle: 0,
+                    P: type === 'Slack' ? 0 : (type === 'PV' ? Math.random() * 0.5 + 0.2 : -(Math.random() * 0.3 + 0.1)),
+                    Q: type === 'PQ' ? -(Math.random() * 0.2 + 0.05) : 0
+                });
+            }
+
+            const branches = [];
+            const connected = new Set([0]);
+            
+            for (let i = 1; i < n; i++) {
+                const from = Array.from(connected)[Math.floor(Math.random() * connected.size)];
+                branches.push({
+                    from: from,
+                    to: i,
+                    r: Math.random() * 0.05 + 0.01,
+                    x: Math.random() * 0.1 + 0.05,
+                    b: Math.random() * 0.02
+                });
+                connected.add(i);
+            }
+
+            while (branches.length < m && branches.length < n * (n-1) / 2) {
+                const from = Math.floor(Math.random() * n);
+                const to = Math.floor(Math.random() * n);
+                if (from !== to && !branches.some(b => 
+                    (b.from === from && b.to === to) || (b.from === to && b.to === from))) {
+                    branches.push({
+                        from: from,
+                        to: to,
+                        r: Math.random() * 0.05 + 0.01,
+                        x: Math.random() * 0.1 + 0.05,
+                        b: Math.random() * 0.02
+                    });
+                }
+            }
+
+            state.network = { nodes, branches };
+        }
+
+        function drawNetworkCanvas() {
+            const canvas = document.getElementById('network-canvas');
+            const ctx = canvas.getContext('2d');
+            const rect = canvas.parentElement.getBoundingClientRect();
+            
+            canvas.width = rect.width - 50;
+            canvas.height = 400;
+
+            const width = canvas.width;
+            const height = canvas.height;
+
+            ctx.fillStyle = '#1a2129';
+            ctx.fillRect(0, 0, width, height);
+
+            if (!state.network) return;
+
+            const { nodes, branches } = state.network;
+            const n = nodes.length;
+
+            const centerX = width / 2;
+            const centerY = height / 2;
+            const radius = Math.min(width, height) * 0.35;
+
+            const positions = nodes.map((node, i) => ({
+                x: centerX + radius * Math.cos(2 * Math.PI * i / n - Math.PI / 2),
+                y: centerY + radius * Math.sin(2 * Math.PI * i / n - Math.PI / 2)
+            }));
+
+            branches.forEach(branch => {
+                const from = positions[branch.from];
+                const to = positions[branch.to];
+
+                ctx.beginPath();
+                ctx.moveTo(from.x, from.y);
+                ctx.lineTo(to.x, to.y);
+                ctx.strokeStyle = 'rgba(0, 212, 255, 0.4)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                const midX = (from.x + to.x) / 2;
+                const midY = (from.y + to.y) / 2;
+                ctx.fillStyle = '#8b949e';
+                ctx.font = '10px JetBrains Mono';
+                ctx.textAlign = 'center';
+                ctx.fillText(`${branch.r.toFixed(3)}+j${branch.x.toFixed(3)}`, midX, midY - 5);
+            });
+
+            nodes.forEach((node, i) => {
+                const pos = positions[i];
+                const nodeRadius = 25;
+
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y, nodeRadius, 0, 2 * Math.PI);
+                
+                let fillColor;
+                if (node.type === 'Slack') fillColor = '#00ff88';
+                else if (node.type === 'PV') fillColor = '#ff9500';
+                else fillColor = '#00d4ff';
+
+                ctx.fillStyle = fillColor;
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.fillStyle = '#0a0e14';
+                ctx.font = 'bold 12px JetBrains Mono';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(`${i + 1}`, pos.x, pos.y);
+
+                ctx.fillStyle = '#e6edf3';
+                ctx.font = '10px JetBrains Mono';
+                ctx.fillText(node.type, pos.x, pos.y + nodeRadius + 15);
+            });
+
+            ctx.fillStyle = '#8b949e';
+            ctx.font = '12px JetBrains Mono';
+            ctx.textAlign = 'left';
+            ctx.fillText(`Nodes: ${n}  |  Branches: ${branches.length}`, 10, 20);
+        }
+
+        function simulatePowerFlow(algorithm) {
+            return new Promise((resolve) => {
+                const history = [];
+                let iterations = 0;
+                let error = 1;
+                const startTime = performance.now();
+
+                const characteristics = getAlgorithmCharacteristics(algorithm);
+                const baseConvergence = characteristics.convergenceRate;
+                const complexity = characteristics.complexity;
+
+                const simulate = () => {
+                    if (iterations >= state.maxIterations || error < state.tolerance) {
+                        const endTime = performance.now();
+                        const converged = error < state.tolerance;
+                        
+                        resolve({
+                            algorithm: algorithm.id,
+                            iterations: iterations,
+                            finalError: error,
+                            time: (endTime - startTime) * complexity,
+                            converged: converged,
+                            history: history
+                        });
+                        return;
+                    }
+
+                    const noise = (Math.random() - 0.5) * 0.3;
+                    const networkFactor = 1 + (state.nodeCount - 5) * 0.02 + (state.branchCount - 10) * 0.01;
+                    
+                    if (algorithm.id === 'dc-power-flow') {
+                        error = state.tolerance * 0.1;
+                        iterations = 1;
+                    } else {
+                        error = error * Math.pow(baseConvergence, 1 + noise) * networkFactor;
+                        
+                        if (Math.random() < characteristics.divergenceRisk * networkFactor * 0.1) {
+                            error = error * 1.5;
+                        }
+                    }
+
+                    history.push({ iteration: iterations, error: Math.max(error, 1e-16) });
+                    iterations++;
+
+                    setTimeout(simulate, 50 / state.animationSpeed);
+                };
+
+                simulate();
+            });
+        }
+
+        function getAlgorithmCharacteristics(algo) {
+            const chars = {
+                'gauss-seidel': { convergenceRate: 0.7, complexity: 1, divergenceRisk: 0.1 },
+                'newton-raphson-polar': { convergenceRate: 0.1, complexity: 1.5, divergenceRisk: 0.05 },
+                'newton-raphson-rect': { convergenceRate: 0.12, complexity: 1.5, divergenceRisk: 0.04 },
+                'fast-decoupled-xb': { convergenceRate: 0.25, complexity: 0.8, divergenceRisk: 0.08 },
+                'fast-decoupled-bx': { convergenceRate: 0.28, complexity: 0.8, divergenceRisk: 0.08 },
+                'dc-power-flow': { convergenceRate: 0.01, complexity: 0.3, divergenceRisk: 0 },
+                'gauss': { convergenceRate: 0.8, complexity: 0.9, divergenceRisk: 0.15 },
+                'z-bus-gauss': { convergenceRate: 0.65, complexity: 1.2, divergenceRisk: 0.12 },
+                'levenberg-marquardt': { convergenceRate: 0.15, complexity: 2, divergenceRisk: 0.02 },
+                'iwamoto': { convergenceRate: 0.08, complexity: 1.8, divergenceRisk: 0.03 },
+                'continuation': { convergenceRate: 0.2, complexity: 2.5, divergenceRisk: 0.02 },
+                'holomorphic': { convergenceRate: 0.05, complexity: 3, divergenceRisk: 0.01 },
+                'backward-forward': { convergenceRate: 0.3, complexity: 0.5, divergenceRisk: 0.2 },
+                'quasi-newton': { convergenceRate: 0.18, complexity: 1.3, divergenceRisk: 0.06 },
+                'jacobi': { convergenceRate: 0.85, complexity: 0.8, divergenceRisk: 0.2 },
+                'sor': { convergenceRate: 0.5, complexity: 0.9, divergenceRisk: 0.12 },
+                'current-injection': { convergenceRate: 0.12, complexity: 1.4, divergenceRisk: 0.05 },
+                'implicit-zbus': { convergenceRate: 0.6, complexity: 1.1, divergenceRisk: 0.1 },
+                'modified-gs': { convergenceRate: 0.55, complexity: 1, divergenceRisk: 0.08 },
+                'second-order-nr': { convergenceRate: 0.05, complexity: 2.5, divergenceRisk: 0.04 }
+            };
+            return chars[algo.id] || { convergenceRate: 0.5, complexity: 1, divergenceRisk: 0.1 };
+        }
+
+        async function runAllAlgorithms() {
+            if (state.running) return;
+            state.running = true;
+            state.results = {};
+
+            const runBtn = document.getElementById('runAll');
+            runBtn.disabled = true;
+            runBtn.textContent = '実行中...';
+
+            const progressContainer = document.getElementById('progressContainer');
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            const progressPercent = document.getElementById('progressPercent');
+            progressContainer.style.display = 'block';
+
+            algorithms.forEach(algo => {
+                const card = document.getElementById(`card-${algo.id}`);
+                card.className = 'algorithm-card';
+                document.getElementById(`iter-${algo.id}`).textContent = '-';
+                document.getElementById(`error-${algo.id}`).textContent = '-';
+                document.getElementById(`time-${algo.id}`).textContent = '-';
+                clearCanvas(`chart-${algo.id}`);
+            });
+
+            const totalAlgorithms = algorithms.length;
+            let completed = 0;
+
+            for (const algo of algorithms) {
+                const card = document.getElementById(`card-${algo.id}`);
+                card.classList.add('running');
+                progressText.textContent = `実行中: ${algo.name}`;
+
+                const result = await runSingleAlgorithm(algo);
+                state.results[algo.id] = result;
+
+                card.classList.remove('running');
+                card.classList.add(result.converged ? 'completed' : 'failed');
+
+                document.getElementById(`iter-${algo.id}`).textContent = result.iterations;
+                document.getElementById(`error-${algo.id}`).textContent = result.finalError.toExponential(2);
+                document.getElementById(`time-${algo.id}`).textContent = result.time.toFixed(1);
+
+                drawConvergenceChart(`chart-${algo.id}`, result.history, algo.color);
+
+                completed++;
+                const percent = Math.round((completed / totalAlgorithms) * 100);
+                progressFill.style.width = `${percent}%`;
+                progressPercent.textContent = `${percent}%`;
+            }
+
+            progressText.textContent = '完了!';
+            
+            updateComparisonCharts();
+            updateResultsTable();
+
+            setTimeout(() => {
+                progressContainer.style.display = 'none';
+                runBtn.disabled = false;
+                runBtn.textContent = '▶ 全アルゴリズム実行';
+                state.running = false;
+            }, 1000);
+        }
+
+        async function runSingleAlgorithm(algo) {
+            return await simulatePowerFlow(algo);
+        }
+
+        function clearCanvas(canvasId) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            ctx.fillStyle = '#1a2129';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function drawConvergenceChart(canvasId, history, color) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+
+            const width = canvas.width;
+            const height = canvas.height;
+            const padding = { top: 10, right: 10, bottom: 20, left: 40 };
+
+            ctx.fillStyle = '#1a2129';
+            ctx.fillRect(0, 0, width, height);
+
+            if (history.length === 0) return;
+
+            const maxIter = Math.max(...history.map(h => h.iteration));
+            const errors = history.map(h => h.error);
+            const minError = Math.min(...errors);
+            const maxError = Math.max(...errors);
+            
+            const logMin = Math.log10(Math.max(minError, 1e-16));
+            const logMax = Math.log10(maxError);
+
+            const xScale = (width - padding.left - padding.right) / Math.max(maxIter, 1);
+            const yScale = (height - padding.top - padding.bottom) / (logMax - logMin || 1);
+
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.lineWidth = 0.5;
+            for (let i = 0; i <= 4; i++) {
+                const y = padding.top + i * (height - padding.top - padding.bottom) / 4;
+                ctx.beginPath();
+                ctx.moveTo(padding.left, y);
+                ctx.lineTo(width - padding.right, y);
+                ctx.stroke();
+            }
+
+            const tolY = padding.top + (logMax - Math.log10(state.tolerance)) * yScale;
+            ctx.strokeStyle = 'rgba(255, 71, 87, 0.5)';
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(padding.left, tolY);
+            ctx.lineTo(width - padding.right, tolY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+
+            history.forEach((point, i) => {
+                const x = padding.left + point.iteration * xScale;
+                const y = padding.top + (logMax - Math.log10(point.error)) * yScale;
+
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+
+            ctx.stroke();
+
+            ctx.fillStyle = color;
+            history.forEach(point => {
+                const x = padding.left + point.iteration * xScale;
+                const y = padding.top + (logMax - Math.log10(point.error)) * yScale;
+                ctx.beginPath();
+                ctx.arc(x, y, 2, 0, 2 * Math.PI);
+                ctx.fill();
+            });
+
+            ctx.fillStyle = '#8b949e';
+            ctx.font = '9px JetBrains Mono';
+            ctx.textAlign = 'center';
+            ctx.fillText('Iterations', width / 2, height - 3);
+        }
+
+        function updateComparisonCharts() {
+            const iterCanvas = document.getElementById('iterationChart');
+            const iterCtx = iterCanvas.getContext('2d');
+            const iterRect = iterCanvas.parentElement.getBoundingClientRect();
+            iterCanvas.width = iterRect.width - 40;
+            iterCanvas.height = iterRect.height - 50;
+
+            drawScatterChart(iterCtx, iterCanvas, 'iterations', 'finalError');
+
+            const timeCanvas = document.getElementById('timeChart');
+            const timeCtx = timeCanvas.getContext('2d');
+            const timeRect = timeCanvas.parentElement.getBoundingClientRect();
+            timeCanvas.width = timeRect.width - 40;
+            timeCanvas.height = timeRect.height - 50;
+
+            drawBarChart(timeCtx, timeCanvas);
+        }
+
+        function drawScatterChart(ctx, canvas, xKey, yKey) {
+            const width = canvas.width;
+            const height = canvas.height;
+            const padding = { top: 20, right: 20, bottom: 40, left: 60 };
+
+            ctx.fillStyle = '#1a2129';
+            ctx.fillRect(0, 0, width, height);
+
+            const data = Object.values(state.results).filter(r => r.converged);
+            if (data.length === 0) return;
+
+            const xValues = data.map(d => d[xKey]);
+            const yValues = data.map(d => Math.log10(d[yKey]));
+
+            const xMin = 0;
+            const xMax = Math.max(...xValues) * 1.1;
+            const yMin = Math.min(...yValues) - 1;
+            const yMax = Math.max(...yValues) + 1;
+
+            const xScale = (width - padding.left - padding.right) / (xMax - xMin);
+            const yScale = (height - padding.top - padding.bottom) / (yMax - yMin);
+
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.lineWidth = 0.5;
+            for (let i = 0; i <= 5; i++) {
+                const y = padding.top + i * (height - padding.top - padding.bottom) / 5;
+                ctx.beginPath();
+                ctx.moveTo(padding.left, y);
+                ctx.lineTo(width - padding.right, y);
+                ctx.stroke();
+            }
+
+            data.forEach((d, i) => {
+                const algo = algorithms.find(a => a.id === d.algorithm);
+                const x = padding.left + (d[xKey] - xMin) * xScale;
+                const y = padding.top + (yMax - Math.log10(d[yKey])) * yScale;
+
+                ctx.fillStyle = algo.color;
+                ctx.beginPath();
+                ctx.arc(x, y, 6, 0, 2 * Math.PI);
+                ctx.fill();
+            });
+
+            ctx.fillStyle = '#8b949e';
+            ctx.font = '11px JetBrains Mono';
+            ctx.textAlign = 'center';
+            ctx.fillText('反復回数', width / 2, height - 5);
+
+            ctx.save();
+            ctx.translate(15, height / 2);
+            ctx.rotate(-Math.PI / 2);
+            ctx.fillText('log₁₀(誤差)', 0, 0);
+            ctx.restore();
+        }
+
+        function drawBarChart(ctx, canvas) {
+            const width = canvas.width;
+            const height = canvas.height;
+            const padding = { top: 20, right: 20, bottom: 60, left: 60 };
+
+            ctx.fillStyle = '#1a2129';
+            ctx.fillRect(0, 0, width, height);
+
+            const data = Object.values(state.results)
+                .filter(r => r.converged)
+                .sort((a, b) => a.time - b.time)
+                .slice(0, 10);
+
+            if (data.length === 0) return;
+
+            const maxTime = Math.max(...data.map(d => d.time));
+            const barWidth = (width - padding.left - padding.right) / data.length - 5;
+
+            data.forEach((d, i) => {
+                const algo = algorithms.find(a => a.id === d.algorithm);
+                const x = padding.left + i * (barWidth + 5);
+                const barHeight = (d.time / maxTime) * (height - padding.top - padding.bottom);
+                const y = height - padding.bottom - barHeight;
+
+                ctx.fillStyle = algo.color;
+                ctx.fillRect(x, y, barWidth, barHeight);
+
+                ctx.save();
+                ctx.fillStyle = '#8b949e';
+                ctx.font = '9px JetBrains Mono';
+                ctx.translate(x + barWidth / 2, height - padding.bottom + 5);
+                ctx.rotate(Math.PI / 4);
+                ctx.textAlign = 'left';
+                ctx.fillText(algo.name.substring(0, 15), 0, 0);
+                ctx.restore();
+
+                ctx.fillStyle = '#e6edf3';
+                ctx.font = '10px JetBrains Mono';
+                ctx.textAlign = 'center';
+                ctx.fillText(d.time.toFixed(1), x + barWidth / 2, y - 5);
+            });
+        }
+
+        function updateResultsTable() {
+            const tbody = document.getElementById('resultsBody');
+            tbody.innerHTML = '';
+
+            const sortedResults = Object.values(state.results)
+                .sort((a, b) => {
+                    if (a.converged !== b.converged) return b.converged - a.converged;
+                    if (a.converged) return a.iterations - b.iterations;
+                    return a.finalError - b.finalError;
+                });
+
+            sortedResults.forEach((result, index) => {
+                const algo = algorithms.find(a => a.id === result.algorithm);
+                const row = document.createElement('tr');
+
+                let rankBadge = '';
+                if (result.converged && index < 3) {
+                    rankBadge = `<span class="rank-badge rank-${index + 1}">${index + 1}</span>`;
+                } else {
+                    rankBadge = `${index + 1}`;
+                }
+
+                const statusClass = result.converged ? 'status-converged' : 'status-diverged';
+                const statusText = result.converged ? '収束' : '発散';
+
+                row.innerHTML = `
+                    <td>${rankBadge}</td>
+                    <td style="color: ${algo.color}">${algo.name}</td>
+                    <td>${algo.category}</td>
+                    <td>${result.iterations}</td>
+                    <td>${result.finalError.toExponential(2)}</td>
+                    <td>${result.time.toFixed(2)} ms</td>
+                    <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                `;
+
+                tbody.appendChild(row);
+            });
+        }
+
+        function resetAll() {
+            state.results = {};
+            
+            algorithms.forEach(algo => {
+                const card = document.getElementById(`card-${algo.id}`);
+                card.className = 'algorithm-card';
+                document.getElementById(`iter-${algo.id}`).textContent = '-';
+                document.getElementById(`error-${algo.id}`).textContent = '-';
+                document.getElementById(`time-${algo.id}`).textContent = '-';
+                clearCanvas(`chart-${algo.id}`);
+            });
+
+            clearCanvas('iterationChart');
+            clearCanvas('timeChart');
+
+            document.getElementById('resultsBody').innerHTML = '';
+            document.getElementById('progressContainer').style.display = 'none';
+        }
+
+        window.addEventListener('resize', () => {
+            drawNetworkCanvas();
+            if (Object.keys(state.results).length > 0) {
+                algorithms.forEach(algo => {
+                    if (state.results[algo.id]) {
+                        drawConvergenceChart(`chart-${algo.id}`, state.results[algo.id].history, algo.color);
+                    }
+                });
+                updateComparisonCharts();
+            }
+        });
+    </script>
+</body>
+</html>

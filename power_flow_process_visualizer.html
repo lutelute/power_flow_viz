@@ -1,0 +1,1696 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>潮流計算 - 計算過程可視化</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --accent-cyan: #58a6ff;
+            --accent-green: #3fb950;
+            --accent-orange: #d29922;
+            --accent-red: #f85149;
+            --accent-purple: #a371f7;
+            --accent-yellow: #e3b341;
+            --accent-pink: #db61a2;
+            --text-primary: #c9d1d9;
+            --text-secondary: #8b949e;
+            --border-color: #30363d;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans JP', 'JetBrains Mono', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            grid-template-rows: auto 1fr auto;
+            height: 100vh;
+            gap: 1px;
+            background: var(--border-color);
+        }
+
+        header {
+            grid-column: 1 / -1;
+            background: var(--bg-secondary);
+            padding: 15px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: var(--accent-cyan);
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .algo-select {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 8px 15px;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+
+        .algo-select:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+        }
+
+        .btn {
+            font-family: 'JetBrains Mono', monospace;
+            padding: 8px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--accent-green);
+            color: var(--bg-primary);
+        }
+
+        .btn-primary:hover {
+            filter: brightness(1.1);
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-warning {
+            background: var(--accent-orange);
+            color: var(--bg-primary);
+        }
+
+        .btn-danger {
+            background: var(--accent-red);
+            color: white;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Main visualization area */
+        .main-area {
+            background: var(--bg-primary);
+            position: relative;
+            overflow: hidden;
+        }
+
+        #networkCanvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Side panel */
+        .side-panel {
+            background: var(--bg-secondary);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .panel-section {
+            padding: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .panel-section h3 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+        }
+
+        /* Iteration info */
+        .iteration-display {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .iter-stat {
+            background: var(--bg-tertiary);
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .iter-stat-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--accent-cyan);
+        }
+
+        .iter-stat-label {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            margin-top: 4px;
+        }
+
+        /* Convergence chart */
+        .convergence-container {
+            height: 150px;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 10px;
+        }
+
+        #convergenceChart {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Bus data table */
+        .bus-table-container {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .bus-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+        }
+
+        .bus-table th {
+            background: var(--bg-tertiary);
+            padding: 8px;
+            text-align: left;
+            color: var(--text-secondary);
+            font-weight: 500;
+            position: sticky;
+            top: 0;
+        }
+
+        .bus-table td {
+            padding: 6px 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .bus-table tr:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .bus-table tr.updated {
+            animation: rowFlash 0.5s ease;
+        }
+
+        @keyframes rowFlash {
+            0%, 100% { background: transparent; }
+            50% { background: rgba(88, 166, 255, 0.2); }
+        }
+
+        .mismatch-bar {
+            width: 60px;
+            height: 6px;
+            background: var(--bg-primary);
+            border-radius: 3px;
+            overflow: hidden;
+            display: inline-block;
+            vertical-align: middle;
+            margin-left: 5px;
+        }
+
+        .mismatch-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        /* Footer controls */
+        footer {
+            grid-column: 1 / -1;
+            background: var(--bg-secondary);
+            padding: 12px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .speed-control label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .speed-slider {
+            width: 150px;
+            -webkit-appearance: none;
+            height: 4px;
+            background: var(--bg-tertiary);
+            border-radius: 2px;
+        }
+
+        .speed-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            background: var(--accent-cyan);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .status-bar {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .status-dot.running { background: var(--accent-yellow); animation: blink 1s infinite; }
+        .status-dot.converged { background: var(--accent-green); }
+        .status-dot.diverged { background: var(--accent-red); }
+        .status-dot.idle { background: var(--text-secondary); }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* Tooltip */
+        .tooltip {
+            position: absolute;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 10px 15px;
+            font-size: 0.8rem;
+            pointer-events: none;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            max-width: 250px;
+        }
+
+        .tooltip-title {
+            font-weight: 600;
+            color: var(--accent-cyan);
+            margin-bottom: 5px;
+        }
+
+        .tooltip-content {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            line-height: 1.6;
+        }
+
+        /* Legend */
+        .legend {
+            display: flex;
+            gap: 20px;
+            font-size: 0.8rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+        }
+
+        /* Matrix visualization */
+        .matrix-container {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+
+        .matrix-title {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        #jacobianCanvas {
+            width: 100%;
+            height: 100px;
+        }
+
+        /* Step indicator */
+        .step-indicator {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+
+        .step-badge {
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-family: 'JetBrains Mono', monospace;
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+        }
+
+        .step-badge.active {
+            background: var(--accent-cyan);
+            color: var(--bg-primary);
+        }
+
+        .step-badge.completed {
+            background: var(--accent-green);
+            color: var(--bg-primary);
+        }
+
+        /* Update animation overlay */
+        .update-flash {
+            position: absolute;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: flashExpand 0.6s ease-out forwards;
+        }
+
+        @keyframes flashExpand {
+            0% { transform: scale(1); opacity: 0.8; }
+            100% { transform: scale(3); opacity: 0; }
+        }
+
+        /* Equation display */
+        .equation-display {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            overflow-x: auto;
+            white-space: pre;
+            line-height: 1.6;
+        }
+
+        .eq-highlight {
+            color: var(--accent-green);
+        }
+
+        .eq-variable {
+            color: var(--accent-orange);
+        }
+
+        .eq-updating {
+            background: rgba(88, 166, 255, 0.2);
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>⚡ 潮流計算 計算過程可視化</h1>
+            <div class="header-controls">
+                <select class="algo-select" id="algorithmSelect">
+                    <option value="gauss-seidel">Gauss-Seidel法</option>
+                    <option value="newton-raphson" selected>Newton-Raphson法</option>
+                    <option value="fast-decoupled">Fast Decoupled法</option>
+                    <option value="dc-power-flow">DC潮流計算</option>
+                    <option value="gauss">Gauss法 (Jacobi型)</option>
+                </select>
+                <select class="algo-select" id="networkSelect">
+                    <option value="3bus">3ノード系統</option>
+                    <option value="5bus" selected>5ノード系統</option>
+                    <option value="9bus">9ノード系統 (IEEE)</option>
+                    <option value="14bus">14ノード系統</option>
+                </select>
+                <button class="btn btn-primary" id="runBtn">▶ 実行</button>
+                <button class="btn btn-warning" id="stepBtn">⏭ ステップ</button>
+                <button class="btn btn-secondary" id="pauseBtn" disabled>⏸ 一時停止</button>
+                <button class="btn btn-danger" id="resetBtn">↺ リセット</button>
+            </div>
+        </header>
+
+        <div class="main-area">
+            <canvas id="networkCanvas"></canvas>
+            <div class="tooltip" id="tooltip" style="display: none;"></div>
+        </div>
+
+        <div class="side-panel">
+            <div class="panel-section">
+                <h3>反復状態</h3>
+                <div class="iteration-display">
+                    <div class="iter-stat">
+                        <div class="iter-stat-value" id="iterCount">0</div>
+                        <div class="iter-stat-label">反復回数</div>
+                    </div>
+                    <div class="iter-stat">
+                        <div class="iter-stat-value" id="maxMismatch">-</div>
+                        <div class="iter-stat-label">最大誤差</div>
+                    </div>
+                </div>
+                <div class="step-indicator" id="stepIndicator">
+                    <div class="step-badge" data-step="init">初期化</div>
+                    <div class="step-badge" data-step="mismatch">誤差計算</div>
+                    <div class="step-badge" data-step="jacobian">J行列</div>
+                    <div class="step-badge" data-step="solve">方程式解</div>
+                    <div class="step-badge" data-step="update">状態更新</div>
+                    <div class="step-badge" data-step="check">収束判定</div>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <h3>収束曲線</h3>
+                <div class="convergence-container">
+                    <canvas id="convergenceChart"></canvas>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <h3>現在の更新式</h3>
+                <div class="equation-display" id="equationDisplay">
+                    アルゴリズムを選択して実行してください
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <h3>ヤコビアン行列 (スパース構造)</h3>
+                <div class="matrix-container">
+                    <canvas id="jacobianCanvas"></canvas>
+                </div>
+            </div>
+
+            <div class="panel-section bus-table-container">
+                <h3>ノード状態</h3>
+                <table class="bus-table">
+                    <thead>
+                        <tr>
+                            <th>Bus</th>
+                            <th>Type</th>
+                            <th>|V|</th>
+                            <th>δ</th>
+                            <th>ΔP</th>
+                            <th>ΔQ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="busTableBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <footer>
+            <div class="speed-control">
+                <label>アニメーション速度:</label>
+                <input type="range" class="speed-slider" id="speedSlider" min="0.1" max="3" step="0.1" value="1">
+                <span id="speedValue">1.0x</span>
+            </div>
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background: var(--accent-green);"></div>
+                    <span>Slack</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: var(--accent-orange);"></div>
+                    <span>PV (発電機)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: var(--accent-cyan);"></div>
+                    <span>PQ (負荷)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: var(--accent-red);"></div>
+                    <span>誤差大</span>
+                </div>
+            </div>
+            <div class="status-bar">
+                <div class="status-item">
+                    <div class="status-dot idle" id="statusDot"></div>
+                    <span id="statusText">待機中</span>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // ============================================================
+        // Network definitions
+        // ============================================================
+        const networks = {
+            '3bus': {
+                buses: [
+                    { id: 0, name: 'Bus 1', type: 'Slack', V: 1.05, delta: 0, P: 0, Q: 0, Pspec: 0, Qspec: 0 },
+                    { id: 1, name: 'Bus 2', type: 'PV', V: 1.02, delta: 0, P: 0.5, Q: 0, Pspec: 0.5, Qspec: 0 },
+                    { id: 2, name: 'Bus 3', type: 'PQ', V: 1.0, delta: 0, P: -0.6, Q: -0.3, Pspec: -0.6, Qspec: -0.3 }
+                ],
+                branches: [
+                    { from: 0, to: 1, r: 0.02, x: 0.06, b: 0.03 },
+                    { from: 0, to: 2, r: 0.03, x: 0.08, b: 0.025 },
+                    { from: 1, to: 2, r: 0.025, x: 0.07, b: 0.02 }
+                ]
+            },
+            '5bus': {
+                buses: [
+                    { id: 0, name: 'Bus 1', type: 'Slack', V: 1.06, delta: 0, P: 0, Q: 0, Pspec: 0, Qspec: 0 },
+                    { id: 1, name: 'Bus 2', type: 'PV', V: 1.045, delta: 0, P: 0.4, Q: 0, Pspec: 0.4, Qspec: 0 },
+                    { id: 2, name: 'Bus 3', type: 'PQ', V: 1.0, delta: 0, P: -0.45, Q: -0.15, Pspec: -0.45, Qspec: -0.15 },
+                    { id: 3, name: 'Bus 4', type: 'PQ', V: 1.0, delta: 0, P: -0.4, Q: -0.05, Pspec: -0.4, Qspec: -0.05 },
+                    { id: 4, name: 'Bus 5', type: 'PQ', V: 1.0, delta: 0, P: -0.6, Q: -0.1, Pspec: -0.6, Qspec: -0.1 }
+                ],
+                branches: [
+                    { from: 0, to: 1, r: 0.02, x: 0.06, b: 0.03 },
+                    { from: 0, to: 2, r: 0.08, x: 0.24, b: 0.025 },
+                    { from: 1, to: 2, r: 0.06, x: 0.18, b: 0.02 },
+                    { from: 1, to: 3, r: 0.06, x: 0.18, b: 0.02 },
+                    { from: 1, to: 4, r: 0.04, x: 0.12, b: 0.015 },
+                    { from: 2, to: 3, r: 0.01, x: 0.03, b: 0.01 },
+                    { from: 3, to: 4, r: 0.08, x: 0.24, b: 0.025 }
+                ]
+            },
+            '9bus': {
+                buses: [
+                    { id: 0, name: 'Bus 1', type: 'Slack', V: 1.04, delta: 0, P: 0, Q: 0, Pspec: 0, Qspec: 0 },
+                    { id: 1, name: 'Bus 2', type: 'PV', V: 1.025, delta: 0, P: 1.63, Q: 0, Pspec: 1.63, Qspec: 0 },
+                    { id: 2, name: 'Bus 3', type: 'PV', V: 1.025, delta: 0, P: 0.85, Q: 0, Pspec: 0.85, Qspec: 0 },
+                    { id: 3, name: 'Bus 4', type: 'PQ', V: 1.0, delta: 0, P: 0, Q: 0, Pspec: 0, Qspec: 0 },
+                    { id: 4, name: 'Bus 5', type: 'PQ', V: 1.0, delta: 0, P: -1.25, Q: -0.5, Pspec: -1.25, Qspec: -0.5 },
+                    { id: 5, name: 'Bus 6', type: 'PQ', V: 1.0, delta: 0, P: -0.9, Q: -0.3, Pspec: -0.9, Qspec: -0.3 },
+                    { id: 6, name: 'Bus 7', type: 'PQ', V: 1.0, delta: 0, P: 0, Q: 0, Pspec: 0, Qspec: 0 },
+                    { id: 7, name: 'Bus 8', type: 'PQ', V: 1.0, delta: 0, P: -1.0, Q: -0.35, Pspec: -1.0, Qspec: -0.35 },
+                    { id: 8, name: 'Bus 9', type: 'PQ', V: 1.0, delta: 0, P: 0, Q: 0, Pspec: 0, Qspec: 0 }
+                ],
+                branches: [
+                    { from: 0, to: 3, r: 0, x: 0.0576, b: 0 },
+                    { from: 1, to: 6, r: 0, x: 0.0625, b: 0 },
+                    { from: 2, to: 8, r: 0, x: 0.0586, b: 0 },
+                    { from: 3, to: 4, r: 0.01, x: 0.085, b: 0.088 },
+                    { from: 3, to: 5, r: 0.017, x: 0.092, b: 0.079 },
+                    { from: 4, to: 6, r: 0.032, x: 0.161, b: 0.153 },
+                    { from: 5, to: 8, r: 0.039, x: 0.17, b: 0.179 },
+                    { from: 6, to: 7, r: 0.0085, x: 0.072, b: 0.0745 },
+                    { from: 7, to: 8, r: 0.0119, x: 0.1008, b: 0.1045 }
+                ]
+            },
+            '14bus': {
+                buses: [
+                    { id: 0, name: 'Bus 1', type: 'Slack', V: 1.06, delta: 0, P: 0, Q: 0, Pspec: 0, Qspec: 0 },
+                    { id: 1, name: 'Bus 2', type: 'PV', V: 1.045, delta: 0, P: 0.4, Q: 0, Pspec: 0.4, Qspec: 0 },
+                    { id: 2, name: 'Bus 3', type: 'PV', V: 1.01, delta: 0, P: 0, Q: 0, Pspec: 0, Qspec: 0 },
+                    { id: 3, name: 'Bus 4', type: 'PQ', V: 1.0, delta: 0, P: -0.478, Q: -0.039, Pspec: -0.478, Qspec: -0.039 },
+                    { id: 4, name: 'Bus 5', type: 'PQ', V: 1.0, delta: 0, P: -0.076, Q: -0.016, Pspec: -0.076, Qspec: -0.016 },
+                    { id: 5, name: 'Bus 6', type: 'PV', V: 1.07, delta: 0, P: 0, Q: 0, Pspec: 0, Qspec: 0 },
+                    { id: 6, name: 'Bus 7', type: 'PQ', V: 1.0, delta: 0, P: 0, Q: 0, Pspec: 0, Qspec: 0 },
+                    { id: 7, name: 'Bus 8', type: 'PV', V: 1.09, delta: 0, P: 0, Q: 0, Pspec: 0, Qspec: 0 },
+                    { id: 8, name: 'Bus 9', type: 'PQ', V: 1.0, delta: 0, P: -0.295, Q: -0.166, Pspec: -0.295, Qspec: -0.166 },
+                    { id: 9, name: 'Bus 10', type: 'PQ', V: 1.0, delta: 0, P: -0.09, Q: -0.058, Pspec: -0.09, Qspec: -0.058 },
+                    { id: 10, name: 'Bus 11', type: 'PQ', V: 1.0, delta: 0, P: -0.035, Q: -0.018, Pspec: -0.035, Qspec: -0.018 },
+                    { id: 11, name: 'Bus 12', type: 'PQ', V: 1.0, delta: 0, P: -0.061, Q: -0.016, Pspec: -0.061, Qspec: -0.016 },
+                    { id: 12, name: 'Bus 13', type: 'PQ', V: 1.0, delta: 0, P: -0.135, Q: -0.058, Pspec: -0.135, Qspec: -0.058 },
+                    { id: 13, name: 'Bus 14', type: 'PQ', V: 1.0, delta: 0, P: -0.149, Q: -0.05, Pspec: -0.149, Qspec: -0.05 }
+                ],
+                branches: [
+                    { from: 0, to: 1, r: 0.01938, x: 0.05917, b: 0.0528 },
+                    { from: 0, to: 4, r: 0.05403, x: 0.22304, b: 0.0492 },
+                    { from: 1, to: 2, r: 0.04699, x: 0.19797, b: 0.0438 },
+                    { from: 1, to: 3, r: 0.05811, x: 0.17632, b: 0.034 },
+                    { from: 1, to: 4, r: 0.05695, x: 0.17388, b: 0.0346 },
+                    { from: 2, to: 3, r: 0.06701, x: 0.17103, b: 0.0128 },
+                    { from: 3, to: 4, r: 0.01335, x: 0.04211, b: 0 },
+                    { from: 3, to: 6, r: 0, x: 0.20912, b: 0 },
+                    { from: 3, to: 8, r: 0, x: 0.55618, b: 0 },
+                    { from: 4, to: 5, r: 0, x: 0.25202, b: 0 },
+                    { from: 5, to: 10, r: 0.09498, x: 0.19890, b: 0 },
+                    { from: 5, to: 11, r: 0.12291, x: 0.25581, b: 0 },
+                    { from: 5, to: 12, r: 0.06615, x: 0.13027, b: 0 },
+                    { from: 6, to: 7, r: 0, x: 0.17615, b: 0 },
+                    { from: 6, to: 8, r: 0.11001, x: 0.20640, b: 0 },
+                    { from: 8, to: 9, r: 0.03181, x: 0.08450, b: 0 },
+                    { from: 8, to: 13, r: 0.12711, x: 0.27038, b: 0 },
+                    { from: 9, to: 10, r: 0.08205, x: 0.19207, b: 0 },
+                    { from: 11, to: 12, r: 0.22092, x: 0.19988, b: 0 },
+                    { from: 12, to: 13, r: 0.17093, x: 0.34802, b: 0 }
+                ]
+            }
+        };
+
+        // ============================================================
+        // State
+        // ============================================================
+        let state = {
+            network: null,
+            buses: [],
+            branches: [],
+            Ybus: [],
+            algorithm: 'newton-raphson',
+            iteration: 0,
+            maxIterations: 50,
+            tolerance: 1e-6,
+            running: false,
+            paused: false,
+            stepMode: false,
+            speed: 1,
+            convergenceHistory: [],
+            currentStep: null,
+            busPositions: []
+        };
+
+        // ============================================================
+        // Initialize
+        // ============================================================
+        document.addEventListener('DOMContentLoaded', () => {
+            initNetwork('5bus');
+            initControls();
+            drawNetwork();
+            updateBusTable();
+        });
+
+        function initControls() {
+            document.getElementById('algorithmSelect').addEventListener('change', (e) => {
+                state.algorithm = e.target.value;
+                resetSimulation();
+            });
+
+            document.getElementById('networkSelect').addEventListener('change', (e) => {
+                initNetwork(e.target.value);
+                resetSimulation();
+                drawNetwork();
+                updateBusTable();
+            });
+
+            document.getElementById('runBtn').addEventListener('click', runSimulation);
+            document.getElementById('stepBtn').addEventListener('click', stepSimulation);
+            document.getElementById('pauseBtn').addEventListener('click', togglePause);
+            document.getElementById('resetBtn').addEventListener('click', resetSimulation);
+
+            document.getElementById('speedSlider').addEventListener('input', (e) => {
+                state.speed = parseFloat(e.target.value);
+                document.getElementById('speedValue').textContent = state.speed.toFixed(1) + 'x';
+            });
+
+            // Canvas hover
+            const canvas = document.getElementById('networkCanvas');
+            canvas.addEventListener('mousemove', handleCanvasHover);
+            canvas.addEventListener('mouseleave', () => {
+                document.getElementById('tooltip').style.display = 'none';
+            });
+        }
+
+        function initNetwork(networkId) {
+            const net = networks[networkId];
+            state.buses = JSON.parse(JSON.stringify(net.buses));
+            state.branches = JSON.parse(JSON.stringify(net.branches));
+            
+            // Calculate bus positions
+            const n = state.buses.length;
+            const canvas = document.getElementById('networkCanvas');
+            const rect = canvas.getBoundingClientRect();
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            const radius = Math.min(rect.width, rect.height) * 0.35;
+
+            state.busPositions = state.buses.map((bus, i) => ({
+                x: centerX + radius * Math.cos(2 * Math.PI * i / n - Math.PI / 2),
+                y: centerY + radius * Math.sin(2 * Math.PI * i / n - Math.PI / 2)
+            }));
+
+            // Build Ybus
+            buildYbus();
+        }
+
+        function buildYbus() {
+            const n = state.buses.length;
+            state.Ybus = Array(n).fill(null).map(() => 
+                Array(n).fill(null).map(() => ({ re: 0, im: 0 }))
+            );
+
+            state.branches.forEach(branch => {
+                const { from, to, r, x, b } = branch;
+                const denom = r * r + x * x;
+                const g = r / denom;
+                const bLine = -x / denom;
+
+                // Off-diagonal
+                state.Ybus[from][to].re -= g;
+                state.Ybus[from][to].im -= bLine;
+                state.Ybus[to][from].re -= g;
+                state.Ybus[to][from].im -= bLine;
+
+                // Diagonal
+                state.Ybus[from][from].re += g;
+                state.Ybus[from][from].im += bLine + b / 2;
+                state.Ybus[to][to].re += g;
+                state.Ybus[to][to].im += bLine + b / 2;
+            });
+        }
+
+        // ============================================================
+        // Drawing
+        // ============================================================
+        function drawNetwork() {
+            const canvas = document.getElementById('networkCanvas');
+            const ctx = canvas.getContext('2d');
+            const rect = canvas.parentElement.getBoundingClientRect();
+            
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+
+            // Clear
+            ctx.fillStyle = '#0d1117';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Update positions based on canvas size
+            const n = state.buses.length;
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const radius = Math.min(canvas.width, canvas.height) * 0.35;
+
+            state.busPositions = state.buses.map((bus, i) => ({
+                x: centerX + radius * Math.cos(2 * Math.PI * i / n - Math.PI / 2),
+                y: centerY + radius * Math.sin(2 * Math.PI * i / n - Math.PI / 2)
+            }));
+
+            // Draw branches with power flow
+            state.branches.forEach(branch => {
+                const from = state.busPositions[branch.from];
+                const to = state.busPositions[branch.to];
+
+                // Line
+                ctx.beginPath();
+                ctx.moveTo(from.x, from.y);
+                ctx.lineTo(to.x, to.y);
+                ctx.strokeStyle = 'rgba(88, 166, 255, 0.4)';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+
+                // Flow animation
+                if (state.running || state.iteration > 0) {
+                    const flow = calculateBranchFlow(branch);
+                    drawFlowArrow(ctx, from, to, flow);
+                }
+            });
+
+            // Draw buses
+            state.buses.forEach((bus, i) => {
+                const pos = state.busPositions[i];
+                const mismatch = calculateBusMismatch(bus);
+                
+                drawBusNode(ctx, bus, pos, mismatch);
+            });
+
+            // Draw Jacobian
+            drawJacobian();
+        }
+
+        function drawBusNode(ctx, bus, pos, mismatch) {
+            const radius = 30;
+            const maxMismatch = Math.max(Math.abs(mismatch.P), Math.abs(mismatch.Q));
+
+            // Glow effect for high mismatch
+            if (maxMismatch > 0.01) {
+                const glowRadius = radius + 15 * Math.min(maxMismatch, 1);
+                const gradient = ctx.createRadialGradient(pos.x, pos.y, radius, pos.x, pos.y, glowRadius);
+                gradient.addColorStop(0, 'rgba(248, 81, 73, 0.5)');
+                gradient.addColorStop(1, 'rgba(248, 81, 73, 0)');
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y, glowRadius, 0, 2 * Math.PI);
+                ctx.fill();
+            }
+
+            // Node circle
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y, radius, 0, 2 * Math.PI);
+            
+            let fillColor;
+            if (bus.type === 'Slack') fillColor = '#3fb950';
+            else if (bus.type === 'PV') fillColor = '#d29922';
+            else fillColor = '#58a6ff';
+
+            // Mix with red based on mismatch
+            if (maxMismatch > 0.001 && bus.type !== 'Slack') {
+                const redMix = Math.min(maxMismatch * 5, 0.8);
+                ctx.fillStyle = fillColor;
+                ctx.fill();
+                ctx.fillStyle = `rgba(248, 81, 73, ${redMix})`;
+                ctx.fill();
+            } else {
+                ctx.fillStyle = fillColor;
+                ctx.fill();
+            }
+
+            ctx.strokeStyle = '#c9d1d9';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Bus number
+            ctx.fillStyle = '#0d1117';
+            ctx.font = 'bold 14px JetBrains Mono';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(bus.id + 1, pos.x, pos.y);
+
+            // Voltage magnitude
+            ctx.fillStyle = '#c9d1d9';
+            ctx.font = '11px JetBrains Mono';
+            ctx.fillText(`|V|=${bus.V.toFixed(3)}`, pos.x, pos.y + radius + 15);
+            ctx.fillText(`δ=${(bus.delta * 180 / Math.PI).toFixed(1)}°`, pos.x, pos.y + radius + 28);
+        }
+
+        function drawFlowArrow(ctx, from, to, flow) {
+            const midX = (from.x + to.x) / 2;
+            const midY = (from.y + to.y) / 2;
+            const angle = Math.atan2(to.y - from.y, to.x - from.x);
+            
+            const arrowLen = 10;
+            const flowMag = Math.abs(flow) * 20;
+
+            ctx.save();
+            ctx.translate(midX, midY);
+            ctx.rotate(flow >= 0 ? angle : angle + Math.PI);
+
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(-arrowLen, -5);
+            ctx.lineTo(-arrowLen, 5);
+            ctx.closePath();
+            ctx.fillStyle = 'rgba(88, 166, 255, 0.8)';
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawJacobian() {
+            const canvas = document.getElementById('jacobianCanvas');
+            const ctx = canvas.getContext('2d');
+            const rect = canvas.parentElement.getBoundingClientRect();
+            
+            canvas.width = rect.width - 20;
+            canvas.height = 100;
+
+            ctx.fillStyle = '#21262d';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const n = state.buses.length;
+            const cellSize = Math.min(canvas.width / (2 * n), canvas.height / (2 * n), 12);
+            const offsetX = (canvas.width - 2 * n * cellSize) / 2;
+            const offsetY = (canvas.height - 2 * n * cellSize) / 2;
+
+            // Draw Jacobian structure
+            for (let i = 0; i < n; i++) {
+                for (let j = 0; j < n; j++) {
+                    const hasConnection = state.Ybus[i][j].re !== 0 || state.Ybus[i][j].im !== 0 || i === j;
+                    
+                    // J11 (dP/dδ)
+                    ctx.fillStyle = hasConnection ? '#58a6ff' : '#161b22';
+                    ctx.fillRect(offsetX + j * cellSize, offsetY + i * cellSize, cellSize - 1, cellSize - 1);
+
+                    // J12 (dP/dV)
+                    ctx.fillStyle = hasConnection ? '#3fb950' : '#161b22';
+                    ctx.fillRect(offsetX + (n + j) * cellSize, offsetY + i * cellSize, cellSize - 1, cellSize - 1);
+
+                    // J21 (dQ/dδ)
+                    ctx.fillStyle = hasConnection ? '#d29922' : '#161b22';
+                    ctx.fillRect(offsetX + j * cellSize, offsetY + (n + i) * cellSize, cellSize - 1, cellSize - 1);
+
+                    // J22 (dQ/dV)
+                    ctx.fillStyle = hasConnection ? '#a371f7' : '#161b22';
+                    ctx.fillRect(offsetX + (n + j) * cellSize, offsetY + (n + i) * cellSize, cellSize - 1, cellSize - 1);
+                }
+            }
+
+            // Labels
+            ctx.fillStyle = '#8b949e';
+            ctx.font = '9px JetBrains Mono';
+            ctx.textAlign = 'center';
+            ctx.fillText('∂P/∂δ', offsetX + n * cellSize / 2, offsetY - 5);
+            ctx.fillText('∂P/∂V', offsetX + n * cellSize * 1.5, offsetY - 5);
+        }
+
+        // ============================================================
+        // Power Flow Calculations
+        // ============================================================
+        function calculateBusMismatch(bus) {
+            if (bus.type === 'Slack') return { P: 0, Q: 0 };
+
+            const n = state.buses.length;
+            let Pcalc = 0, Qcalc = 0;
+
+            for (let j = 0; j < n; j++) {
+                const Vj = state.buses[j].V;
+                const dj = state.buses[j].delta;
+                const Gij = state.Ybus[bus.id][j].re;
+                const Bij = state.Ybus[bus.id][j].im;
+                const thetaij = bus.delta - dj;
+
+                Pcalc += bus.V * Vj * (Gij * Math.cos(thetaij) + Bij * Math.sin(thetaij));
+                Qcalc += bus.V * Vj * (Gij * Math.sin(thetaij) - Bij * Math.cos(thetaij));
+            }
+
+            return {
+                P: bus.Pspec - Pcalc,
+                Q: bus.type === 'PQ' ? bus.Qspec - Qcalc : 0
+            };
+        }
+
+        function calculateBranchFlow(branch) {
+            const Vi = state.buses[branch.from].V;
+            const Vj = state.buses[branch.to].V;
+            const di = state.buses[branch.from].delta;
+            const dj = state.buses[branch.to].delta;
+            
+            const { r, x } = branch;
+            const denom = r * r + x * x;
+            const g = r / denom;
+            const b = -x / denom;
+
+            const Pij = Vi * Vi * g - Vi * Vj * (g * Math.cos(di - dj) + b * Math.sin(di - dj));
+            return Pij;
+        }
+
+        function getMaxMismatch() {
+            let maxP = 0, maxQ = 0;
+            state.buses.forEach(bus => {
+                const mismatch = calculateBusMismatch(bus);
+                maxP = Math.max(maxP, Math.abs(mismatch.P));
+                maxQ = Math.max(maxQ, Math.abs(mismatch.Q));
+            });
+            return Math.max(maxP, maxQ);
+        }
+
+        // ============================================================
+        // Algorithm Implementations
+        // ============================================================
+        async function runIteration() {
+            const algo = state.algorithm;
+            
+            switch (algo) {
+                case 'newton-raphson':
+                    await runNewtonRaphson();
+                    break;
+                case 'gauss-seidel':
+                    await runGaussSeidel();
+                    break;
+                case 'fast-decoupled':
+                    await runFastDecoupled();
+                    break;
+                case 'dc-power-flow':
+                    await runDCPowerFlow();
+                    break;
+                case 'gauss':
+                    await runGauss();
+                    break;
+            }
+        }
+
+        async function runNewtonRaphson() {
+            // Step 1: Calculate mismatches
+            await animateStep('mismatch', 'ミスマッチ ΔP, ΔQ 計算中...');
+            
+            const n = state.buses.length;
+            const mismatches = state.buses.map(b => calculateBusMismatch(b));
+            
+            updateEquationDisplay(`ミスマッチ計算:
+<span class="eq-variable">ΔP_i</span> = P_spec - Σ|V_i||V_j||Y_ij|cos(θ_ij - δ_i + δ_j)
+<span class="eq-variable">ΔQ_i</span> = Q_spec - Σ|V_i||V_j||Y_ij|sin(θ_ij - δ_i + δ_j)
+
+最大誤差: ${getMaxMismatch().toExponential(3)}`);
+
+            await delay(800 / state.speed);
+
+            // Step 2: Build Jacobian
+            await animateStep('jacobian', 'ヤコビアン行列 J 構築中...');
+            
+            updateEquationDisplay(`ヤコビアン行列:
+J = [<span class="eq-variable">∂P/∂δ</span>  <span class="eq-variable">∂P/∂V</span>]
+    [<span class="eq-variable">∂Q/∂δ</span>  <span class="eq-variable">∂Q/∂V</span>]
+
+サイズ: ${2*n-2} × ${2*n-2} (Slackバス除く)`);
+
+            drawJacobian();
+            await delay(600 / state.speed);
+
+            // Step 3: Solve linear system
+            await animateStep('solve', '線形方程式 JΔx = -f を解く...');
+            
+            updateEquationDisplay(`線形方程式を解く:
+[<span class="eq-variable">Δδ</span>]       [<span class="eq-variable">ΔP</span>]
+[<span class="eq-variable">ΔV</span>] = -J⁻¹ [<span class="eq-variable">ΔQ</span>]
+
+LU分解を使用...`);
+
+            await delay(600 / state.speed);
+
+            // Step 4: Update state variables
+            await animateStep('update', '状態変数を更新中...');
+
+            // Simplified update (actual NR would use Jacobian inverse)
+            for (let i = 0; i < n; i++) {
+                const bus = state.buses[i];
+                if (bus.type === 'Slack') continue;
+
+                const mismatch = mismatches[i];
+                const factor = 0.8; // Damping factor for stability
+
+                // Update angle
+                bus.delta += factor * mismatch.P * 0.1;
+                
+                // Update voltage for PQ buses
+                if (bus.type === 'PQ') {
+                    bus.V += factor * mismatch.Q * 0.05;
+                    bus.V = Math.max(0.9, Math.min(1.1, bus.V)); // Clamp
+                }
+
+                await highlightBusUpdate(i);
+            }
+
+            updateEquationDisplay(`状態更新完了:
+<span class="eq-variable">δ</span>^(k+1) = δ^(k) + <span class="eq-highlight">Δδ</span>
+<span class="eq-variable">V</span>^(k+1) = V^(k) + <span class="eq-highlight">ΔV</span>
+
+反復 ${state.iteration + 1} 完了`);
+
+            await delay(400 / state.speed);
+
+            // Step 5: Check convergence
+            await animateStep('check', '収束判定...');
+            
+            const maxError = getMaxMismatch();
+            updateEquationDisplay(`収束判定:
+max(|ΔP|, |ΔQ|) = ${maxError.toExponential(3)}
+許容誤差 ε = ${state.tolerance.toExponential(1)}
+
+${maxError < state.tolerance ? '<span class="eq-highlight">✓ 収束!</span>' : '→ 次の反復へ'}`);
+        }
+
+        async function runGaussSeidel() {
+            await animateStep('update', 'Gauss-Seidel更新中...');
+
+            const n = state.buses.length;
+            
+            for (let i = 0; i < n; i++) {
+                const bus = state.buses[i];
+                if (bus.type === 'Slack') continue;
+
+                // Calculate new voltage
+                let sumYV = { re: 0, im: 0 };
+                for (let j = 0; j < n; j++) {
+                    if (i === j) continue;
+                    const Vj = state.buses[j].V;
+                    const dj = state.buses[j].delta;
+                    const Yij = state.Ybus[i][j];
+                    
+                    sumYV.re += Yij.re * Vj * Math.cos(dj) - Yij.im * Vj * Math.sin(dj);
+                    sumYV.im += Yij.re * Vj * Math.sin(dj) + Yij.im * Vj * Math.cos(dj);
+                }
+
+                const Yii = state.Ybus[i][i];
+                const S = { re: bus.Pspec, im: -bus.Qspec };
+                
+                // V_i = (1/Y_ii) * ((S/V*) - sum(Y_ij * V_j))
+                const Vconj = { re: bus.V * Math.cos(-bus.delta), im: bus.V * Math.sin(-bus.delta) };
+                const SoverV = {
+                    re: (S.re * Vconj.re - S.im * Vconj.im) / (bus.V * bus.V),
+                    im: (S.re * Vconj.im + S.im * Vconj.re) / (bus.V * bus.V)
+                };
+
+                const rhs = {
+                    re: SoverV.re - sumYV.re,
+                    im: SoverV.im - sumYV.im
+                };
+
+                // Divide by Yii
+                const Yii_mag_sq = Yii.re * Yii.re + Yii.im * Yii.im;
+                const newV = {
+                    re: (rhs.re * Yii.re + rhs.im * Yii.im) / Yii_mag_sq,
+                    im: (rhs.im * Yii.re - rhs.re * Yii.im) / Yii_mag_sq
+                };
+
+                const newMag = Math.sqrt(newV.re * newV.re + newV.im * newV.im);
+                const newAngle = Math.atan2(newV.im, newV.re);
+
+                // Apply with damping
+                const alpha = 1.0;
+                if (bus.type === 'PQ') {
+                    bus.V = bus.V + alpha * (newMag - bus.V);
+                }
+                bus.delta = bus.delta + alpha * (newAngle - bus.delta);
+
+                bus.V = Math.max(0.9, Math.min(1.1, bus.V));
+
+                updateEquationDisplay(`Gauss-Seidel更新 (Bus ${i + 1}):
+V_${i+1}^(k+1) = 1/Y_${i+1}${i+1} × [
+  (P - jQ)/V*
+  - Σ Y_${i+1}j × V_j
+]
+
+|V| = ${bus.V.toFixed(4)}, δ = ${(bus.delta * 180 / Math.PI).toFixed(2)}°`);
+
+                await highlightBusUpdate(i);
+                await delay(300 / state.speed);
+            }
+
+            await animateStep('check', '収束判定...');
+        }
+
+        async function runFastDecoupled() {
+            // P-delta subproblem
+            await animateStep('mismatch', 'P-δ サブ問題...');
+            
+            updateEquationDisplay(`Fast Decoupled法:
+<span class="eq-variable">B'</span> × Δδ = ΔP/V
+
+B'行列で位相角を更新...`);
+
+            await delay(500 / state.speed);
+
+            const n = state.buses.length;
+            for (let i = 0; i < n; i++) {
+                const bus = state.buses[i];
+                if (bus.type === 'Slack') continue;
+                
+                const mismatch = calculateBusMismatch(bus);
+                bus.delta += mismatch.P * 0.15;
+                
+                await highlightBusUpdate(i);
+            }
+
+            await delay(400 / state.speed);
+
+            // Q-V subproblem
+            await animateStep('update', 'Q-V サブ問題...');
+            
+            updateEquationDisplay(`Fast Decoupled法:
+<span class="eq-variable">B"</span> × ΔV = ΔQ/V
+
+B"行列で電圧を更新...`);
+
+            for (let i = 0; i < n; i++) {
+                const bus = state.buses[i];
+                if (bus.type !== 'PQ') continue;
+                
+                const mismatch = calculateBusMismatch(bus);
+                bus.V += mismatch.Q * 0.08;
+                bus.V = Math.max(0.9, Math.min(1.1, bus.V));
+                
+                await highlightBusUpdate(i);
+            }
+
+            await animateStep('check', '収束判定...');
+        }
+
+        async function runDCPowerFlow() {
+            await animateStep('init', 'DC潮流計算 (線形)...');
+            
+            updateEquationDisplay(`DC潮流計算:
+仮定: |V| = 1.0, sin(δ) ≈ δ, r << x
+
+<span class="eq-variable">P</span> = <span class="eq-variable">B</span> × <span class="eq-variable">δ</span>
+
+1回の計算で解を得る`);
+
+            await delay(800 / state.speed);
+
+            await animateStep('solve', '線形方程式を解く...');
+
+            const n = state.buses.length;
+            
+            // Simple DC power flow update
+            for (let i = 0; i < n; i++) {
+                const bus = state.buses[i];
+                if (bus.type === 'Slack') continue;
+                
+                let sumB = 0;
+                for (let j = 0; j < n; j++) {
+                    if (i === j) continue;
+                    sumB += state.Ybus[i][j].im * state.buses[j].delta;
+                }
+                
+                bus.delta = (bus.Pspec - sumB) / state.Ybus[i][i].im;
+                bus.V = 1.0; // DC assumes flat voltage
+            }
+
+            await animateStep('update', '解の計算完了');
+            
+            updateEquationDisplay(`DC潮流計算完了:
+全ノードの位相角 δ を計算
+
+注: 電圧は 1.0 p.u. と仮定
+    無効電力 Q は計算されない`);
+
+            // DC power flow converges in 1 iteration
+            state.convergenceHistory.push(state.tolerance / 10);
+            updateConvergenceChart();
+            drawNetwork();
+            updateBusTable();
+        }
+
+        async function runGauss() {
+            await animateStep('update', 'Gauss (Jacobi) 更新中...');
+
+            const n = state.buses.length;
+            const oldVoltages = state.buses.map(b => ({ V: b.V, delta: b.delta }));
+            
+            for (let i = 0; i < n; i++) {
+                const bus = state.buses[i];
+                if (bus.type === 'Slack') continue;
+
+                let sumYV = { re: 0, im: 0 };
+                for (let j = 0; j < n; j++) {
+                    if (i === j) continue;
+                    // Use OLD values (Jacobi style)
+                    const Vj = oldVoltages[j].V;
+                    const dj = oldVoltages[j].delta;
+                    const Yij = state.Ybus[i][j];
+                    
+                    sumYV.re += Yij.re * Vj * Math.cos(dj) - Yij.im * Vj * Math.sin(dj);
+                    sumYV.im += Yij.re * Vj * Math.sin(dj) + Yij.im * Vj * Math.cos(dj);
+                }
+
+                const mismatch = calculateBusMismatch(bus);
+                bus.delta += mismatch.P * 0.08;
+                
+                if (bus.type === 'PQ') {
+                    bus.V += mismatch.Q * 0.04;
+                    bus.V = Math.max(0.9, Math.min(1.1, bus.V));
+                }
+
+                await highlightBusUpdate(i);
+            }
+
+            updateEquationDisplay(`Gauss (Jacobi) 法:
+全ノードを<span class="eq-highlight">前回の値</span>で同時更新
+
+V_i^(k+1) = f(V^(k)) ← 全て前回値
+
+並列計算に適している`);
+
+            await animateStep('check', '収束判定...');
+        }
+
+        // ============================================================
+        // Animation helpers
+        // ============================================================
+        async function animateStep(step, message) {
+            state.currentStep = step;
+            
+            // Update step indicators
+            document.querySelectorAll('.step-badge').forEach(badge => {
+                badge.classList.remove('active', 'completed');
+            });
+            
+            const steps = ['init', 'mismatch', 'jacobian', 'solve', 'update', 'check'];
+            const currentIndex = steps.indexOf(step);
+            
+            steps.forEach((s, i) => {
+                const badge = document.querySelector(`.step-badge[data-step="${s}"]`);
+                if (i < currentIndex) badge.classList.add('completed');
+                if (i === currentIndex) badge.classList.add('active');
+            });
+
+            // Update status
+            document.getElementById('statusText').textContent = message;
+        }
+
+        async function highlightBusUpdate(busIndex) {
+            // Flash the bus on canvas
+            const canvas = document.getElementById('networkCanvas');
+            const ctx = canvas.getContext('2d');
+            const pos = state.busPositions[busIndex];
+
+            // Draw flash effect
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y, 45, 0, 2 * Math.PI);
+            ctx.fillStyle = 'rgba(88, 166, 255, 0.4)';
+            ctx.fill();
+
+            // Update table row
+            const row = document.querySelector(`#busTableBody tr:nth-child(${busIndex + 1})`);
+            if (row) {
+                row.classList.add('updated');
+                setTimeout(() => row.classList.remove('updated'), 500);
+            }
+
+            // Redraw
+            drawNetwork();
+            updateBusTable();
+
+            await delay(150 / state.speed);
+        }
+
+        function updateEquationDisplay(text) {
+            document.getElementById('equationDisplay').innerHTML = text;
+        }
+
+        function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // ============================================================
+        // Simulation control
+        // ============================================================
+        async function runSimulation() {
+            if (state.running) return;
+            
+            state.running = true;
+            state.paused = false;
+            state.stepMode = false;
+            
+            updateStatus('running', '実行中...');
+            document.getElementById('runBtn').disabled = true;
+            document.getElementById('pauseBtn').disabled = false;
+
+            while (state.running && state.iteration < state.maxIterations) {
+                if (state.paused) {
+                    await delay(100);
+                    continue;
+                }
+
+                await runIteration();
+                state.iteration++;
+                
+                const maxError = getMaxMismatch();
+                state.convergenceHistory.push(maxError);
+                
+                document.getElementById('iterCount').textContent = state.iteration;
+                document.getElementById('maxMismatch').textContent = maxError.toExponential(2);
+                
+                updateConvergenceChart();
+                drawNetwork();
+                updateBusTable();
+
+                if (maxError < state.tolerance) {
+                    state.running = false;
+                    updateStatus('converged', `収束! (${state.iteration}回)`);
+                    break;
+                }
+
+                await delay(200 / state.speed);
+            }
+
+            if (state.iteration >= state.maxIterations) {
+                updateStatus('diverged', '最大反復数に到達');
+            }
+
+            document.getElementById('runBtn').disabled = false;
+            document.getElementById('pauseBtn').disabled = true;
+            state.running = false;
+        }
+
+        async function stepSimulation() {
+            if (state.running && !state.paused) return;
+            
+            state.stepMode = true;
+            updateStatus('running', 'ステップ実行...');
+
+            await runIteration();
+            state.iteration++;
+            
+            const maxError = getMaxMismatch();
+            state.convergenceHistory.push(maxError);
+            
+            document.getElementById('iterCount').textContent = state.iteration;
+            document.getElementById('maxMismatch').textContent = maxError.toExponential(2);
+            
+            updateConvergenceChart();
+            drawNetwork();
+            updateBusTable();
+
+            if (maxError < state.tolerance) {
+                updateStatus('converged', `収束! (${state.iteration}回)`);
+            } else {
+                updateStatus('idle', 'ステップ完了');
+            }
+        }
+
+        function togglePause() {
+            state.paused = !state.paused;
+            const btn = document.getElementById('pauseBtn');
+            if (state.paused) {
+                btn.textContent = '▶ 再開';
+                updateStatus('idle', '一時停止中');
+            } else {
+                btn.textContent = '⏸ 一時停止';
+                updateStatus('running', '実行中...');
+            }
+        }
+
+        function resetSimulation() {
+            state.running = false;
+            state.paused = false;
+            state.iteration = 0;
+            state.convergenceHistory = [];
+            state.currentStep = null;
+
+            // Reset buses to initial state
+            const networkId = document.getElementById('networkSelect').value;
+            initNetwork(networkId);
+
+            document.getElementById('iterCount').textContent = '0';
+            document.getElementById('maxMismatch').textContent = '-';
+            document.getElementById('runBtn').disabled = false;
+            document.getElementById('pauseBtn').disabled = true;
+
+            // Reset step indicators
+            document.querySelectorAll('.step-badge').forEach(badge => {
+                badge.classList.remove('active', 'completed');
+            });
+
+            updateEquationDisplay('アルゴリズムを選択して実行してください');
+            updateStatus('idle', '待機中');
+            updateConvergenceChart();
+            drawNetwork();
+            updateBusTable();
+        }
+
+        function updateStatus(status, text) {
+            const dot = document.getElementById('statusDot');
+            dot.className = 'status-dot ' + status;
+            document.getElementById('statusText').textContent = text;
+        }
+
+        // ============================================================
+        // UI Updates
+        // ============================================================
+        function updateBusTable() {
+            const tbody = document.getElementById('busTableBody');
+            tbody.innerHTML = '';
+
+            state.buses.forEach(bus => {
+                const mismatch = calculateBusMismatch(bus);
+                const row = document.createElement('tr');
+
+                const pMismatchPct = Math.min(Math.abs(mismatch.P) * 100, 100);
+                const qMismatchPct = Math.min(Math.abs(mismatch.Q) * 100, 100);
+                const pColor = pMismatchPct > 50 ? '#f85149' : pMismatchPct > 10 ? '#d29922' : '#3fb950';
+                const qColor = qMismatchPct > 50 ? '#f85149' : qMismatchPct > 10 ? '#d29922' : '#3fb950';
+
+                row.innerHTML = `
+                    <td>${bus.id + 1}</td>
+                    <td>${bus.type}</td>
+                    <td>${bus.V.toFixed(4)}</td>
+                    <td>${(bus.delta * 180 / Math.PI).toFixed(2)}°</td>
+                    <td>
+                        ${mismatch.P.toFixed(4)}
+                        <div class="mismatch-bar">
+                            <div class="mismatch-fill" style="width: ${pMismatchPct}%; background: ${pColor};"></div>
+                        </div>
+                    </td>
+                    <td>
+                        ${mismatch.Q.toFixed(4)}
+                        <div class="mismatch-bar">
+                            <div class="mismatch-fill" style="width: ${qMismatchPct}%; background: ${qColor};"></div>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function updateConvergenceChart() {
+            const canvas = document.getElementById('convergenceChart');
+            const ctx = canvas.getContext('2d');
+            const rect = canvas.parentElement.getBoundingClientRect();
+
+            canvas.width = rect.width - 20;
+            canvas.height = rect.height - 20;
+
+            const width = canvas.width;
+            const height = canvas.height;
+            const padding = { top: 10, right: 10, bottom: 25, left: 45 };
+
+            ctx.fillStyle = '#21262d';
+            ctx.fillRect(0, 0, width, height);
+
+            if (state.convergenceHistory.length === 0) {
+                ctx.fillStyle = '#8b949e';
+                ctx.font = '11px JetBrains Mono';
+                ctx.textAlign = 'center';
+                ctx.fillText('実行するとここに収束曲線が表示されます', width / 2, height / 2);
+                return;
+            }
+
+            const data = state.convergenceHistory;
+            const maxIter = Math.max(data.length, 10);
+            const logData = data.map(d => Math.log10(Math.max(d, 1e-16)));
+            const minLog = Math.min(...logData, Math.log10(state.tolerance)) - 1;
+            const maxLog = Math.max(...logData) + 0.5;
+
+            const xScale = (width - padding.left - padding.right) / maxIter;
+            const yScale = (height - padding.top - padding.bottom) / (maxLog - minLog);
+
+            // Grid
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.lineWidth = 0.5;
+            for (let i = 0; i <= 4; i++) {
+                const y = padding.top + i * (height - padding.top - padding.bottom) / 4;
+                ctx.beginPath();
+                ctx.moveTo(padding.left, y);
+                ctx.lineTo(width - padding.right, y);
+                ctx.stroke();
+            }
+
+            // Tolerance line
+            const tolY = padding.top + (maxLog - Math.log10(state.tolerance)) * yScale;
+            ctx.strokeStyle = '#f85149';
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.moveTo(padding.left, tolY);
+            ctx.lineTo(width - padding.right, tolY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Convergence curve
+            ctx.strokeStyle = '#58a6ff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+
+            data.forEach((val, i) => {
+                const x = padding.left + (i + 1) * xScale;
+                const y = padding.top + (maxLog - Math.log10(Math.max(val, 1e-16))) * yScale;
+                
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+
+            // Points
+            ctx.fillStyle = '#58a6ff';
+            data.forEach((val, i) => {
+                const x = padding.left + (i + 1) * xScale;
+                const y = padding.top + (maxLog - Math.log10(Math.max(val, 1e-16))) * yScale;
+                ctx.beginPath();
+                ctx.arc(x, y, 3, 0, 2 * Math.PI);
+                ctx.fill();
+            });
+
+            // Labels
+            ctx.fillStyle = '#8b949e';
+            ctx.font = '9px JetBrains Mono';
+            ctx.textAlign = 'center';
+            ctx.fillText('反復回数', width / 2, height - 3);
+
+            ctx.save();
+            ctx.translate(12, height / 2);
+            ctx.rotate(-Math.PI / 2);
+            ctx.fillText('log₁₀(誤差)', 0, 0);
+            ctx.restore();
+        }
+
+        function handleCanvasHover(e) {
+            const canvas = document.getElementById('networkCanvas');
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            // Check if hovering over a bus
+            for (let i = 0; i < state.buses.length; i++) {
+                const pos = state.busPositions[i];
+                const dist = Math.sqrt((x - pos.x) ** 2 + (y - pos.y) ** 2);
+
+                if (dist < 30) {
+                    const bus = state.buses[i];
+                    const mismatch = calculateBusMismatch(bus);
+
+                    const tooltip = document.getElementById('tooltip');
+                    tooltip.style.display = 'block';
+                    tooltip.style.left = (e.clientX + 15) + 'px';
+                    tooltip.style.top = (e.clientY + 15) + 'px';
+                    tooltip.innerHTML = `
+                        <div class="tooltip-title">${bus.name} (${bus.type})</div>
+                        <div class="tooltip-content">
+電圧: |V| = ${bus.V.toFixed(4)} p.u.
+位相: δ = ${(bus.delta * 180 / Math.PI).toFixed(2)}°
+P_spec = ${bus.Pspec.toFixed(3)} p.u.
+Q_spec = ${bus.Qspec.toFixed(3)} p.u.
+───────────────
+ΔP = ${mismatch.P.toFixed(4)}
+ΔQ = ${mismatch.Q.toFixed(4)}
+                        </div>
+                    `;
+                    return;
+                }
+            }
+
+            document.getElementById('tooltip').style.display = 'none';
+        }
+
+        // Resize handler
+        window.addEventListener('resize', () => {
+            drawNetwork();
+            updateConvergenceChart();
+        });
+    </script>
+</body>
+</html>

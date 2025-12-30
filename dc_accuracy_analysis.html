@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>潮流計算 DC法精度検証</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-surface: #1a1a25;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-orange: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-purple: #8b5cf6;
+            --accent-cyan: #06b6d4;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border: #2d2d3d;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 15px;
+        }
+        h1 { font-size: 1.2rem; margin-bottom: 15px; color: var(--accent-cyan); }
+        h2 { font-size: 1rem; margin: 15px 0 10px; color: var(--accent-orange); }
+        h3 { font-size: 0.85rem; margin: 10px 0 8px; color: var(--text-secondary); }
+        .container { max-width: 1600px; margin: 0 auto; }
+        .controls {
+            background: var(--bg-card);
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: flex-end;
+        }
+        .control-group { display: flex; flex-direction: column; gap: 4px; }
+        .control-group label { font-size: 0.7rem; color: var(--text-secondary); }
+        .control-group select, .control-group input {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 6px 10px;
+            border-radius: 5px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+        }
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .btn-primary { background: var(--accent-cyan); color: var(--bg-dark); }
+        .btn-secondary { background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border); }
+        .btn:hover { opacity: 0.9; }
+        
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        @media (max-width: 1200px) { .grid { grid-template-columns: 1fr; } }
+        
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+        }
+        .log {
+            background: var(--bg-dark);
+            border-radius: 6px;
+            padding: 10px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            line-height: 1.5;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .error { color: var(--accent-red); }
+        .success { color: var(--accent-green); }
+        .warning { color: var(--accent-orange); }
+        .info { color: var(--accent-cyan); }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.7rem;
+            margin-top: 8px;
+        }
+        th, td {
+            padding: 6px 8px;
+            border-bottom: 1px solid var(--border);
+            text-align: left;
+        }
+        th { background: var(--bg-surface); color: var(--text-secondary); }
+        .num { font-family: 'JetBrains Mono', monospace; text-align: right; }
+        
+        .chart-container { height: 250px; position: relative; }
+        canvas { width: 100%; height: 100%; }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .metric {
+            background: var(--bg-surface);
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .metric-value {
+            font-size: 1.2rem;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .metric-label { font-size: 0.65rem; color: var(--text-muted); margin-top: 4px; }
+        .metric.good .metric-value { color: var(--accent-green); }
+        .metric.warn .metric-value { color: var(--accent-orange); }
+        .metric.bad .metric-value { color: var(--accent-red); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚡ 潮流計算 DC法精度検証・無効電力分析</h1>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label>テストケース</label>
+                <select id="caseSelect">
+                    <option value="case5">5-bus Example</option>
+                    <option value="case9" selected>IEEE 9-bus</option>
+                    <option value="case14">IEEE 14-bus</option>
+                    <option value="case30">IEEE 30-bus</option>
+                    <option value="random30">ランダム 30-bus</option>
+                    <option value="random50">ランダム 50-bus</option>
+                    <option value="random100">ランダム 100-bus</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>収束判定 (AC)</label>
+                <select id="tolSelect">
+                    <option value="1e-6" selected>10⁻⁶</option>
+                    <option value="1e-8">10⁻⁸</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>Q/P比 (ランダム)</label>
+                <input type="number" id="qpRatio" value="0.3" min="0" max="1" step="0.1" style="width:70px;">
+            </div>
+            <button class="btn btn-primary" onclick="runAnalysis()">▶ 解析実行</button>
+            <button class="btn btn-secondary" onclick="regenerateRandom()">🔄 ランダム再生成</button>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h2>📊 AC vs DC 比較結果</h2>
+                <div class="metrics-grid" id="metricsGrid"></div>
+                <h3>バス別誤差</h3>
+                <div style="max-height: 300px; overflow-y: auto;">
+                    <table id="busTable">
+                        <thead>
+                            <tr>
+                                <th>Bus</th>
+                                <th>Type</th>
+                                <th class="num">V_AC</th>
+                                <th class="num">δ_AC</th>
+                                <th class="num">δ_DC</th>
+                                <th class="num">Δδ [°]</th>
+                                <th class="num">P_AC</th>
+                                <th class="num">P_DC</th>
+                                <th class="num">ΔP [%]</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>⚡ 無効電力分析</h2>
+                <div class="metrics-grid" id="qMetricsGrid"></div>
+                <h3>無効電力詳細</h3>
+                <div style="max-height: 300px; overflow-y: auto;">
+                    <table id="qTable">
+                        <thead>
+                            <tr>
+                                <th>Bus</th>
+                                <th>Type</th>
+                                <th class="num">Q_load</th>
+                                <th class="num">Q_gen</th>
+                                <th class="num">Q_calc</th>
+                                <th class="num">Q_mismatch</th>
+                                <th class="num">ΔV due to Q</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid" style="margin-top: 15px;">
+            <div class="card">
+                <h2>📈 角度比較チャート</h2>
+                <div class="chart-container">
+                    <canvas id="angleChart"></canvas>
+                </div>
+            </div>
+            <div class="card">
+                <h2>📉 電圧・無効電力チャート</h2>
+                <div class="chart-container">
+                    <canvas id="voltageChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top: 15px;">
+            <h2>📝 解析ログ</h2>
+            <div class="log" id="logOutput"></div>
+        </div>
+    </div>
+
+    <script>
+    // ============================================================
+    // Logging
+    // ============================================================
+    const logBuffer = [];
+    function log(msg, type = 'info') {
+        logBuffer.push({ msg, type });
+        const el = document.getElementById('logOutput');
+        if (el) {
+            el.innerHTML = logBuffer.map(l => `<span class="${l.type}">${l.msg}</span>`).join('\n');
+            el.scrollTop = el.scrollHeight;
+        }
+    }
+    function clearLog() { logBuffer.length = 0; }
+
+    // ============================================================
+    // IEEE Test Cases
+    // ============================================================
+    const CASES = {
+        case5: {
+            name: '5-bus', baseMVA: 100,
+            bus: [[1,3,0,0,0,0,1,1.06,0,230,1,1.1,0.9],[2,2,20,10,0,0,1,1.0,0,230,1,1.1,0.9],[3,1,45,15,0,0,1,1.0,0,230,1,1.1,0.9],[4,1,40,5,0,0,1,1.0,0,230,1,1.1,0.9],[5,1,60,10,0,0,1,1.0,0,230,1,1.1,0.9]],
+            gen: [[1,0,0,200,-200,1.06,100,1,250,10],[2,40,0,100,-100,1.045,100,1,150,10]],
+            branch: [[1,2,0.02,0.06,0.03,130,130,130,0,0,1],[1,3,0.08,0.24,0.025,130,130,130,0,0,1],[2,3,0.06,0.18,0.02,65,65,65,0,0,1],[2,4,0.06,0.18,0.02,90,90,90,0,0,1],[2,5,0.04,0.12,0.015,70,70,70,0,0,1],[3,4,0.01,0.03,0.01,130,130,130,0,0,1],[4,5,0.08,0.24,0.025,90,90,90,0,0,1]]
+        },
+        case9: {
+            name: 'IEEE 9-bus', baseMVA: 100,
+            bus: [[1,3,0,0,0,0,1,1.04,0,16.5,1,1.1,0.9],[2,2,0,0,0,0,1,1.025,0,18,1,1.1,0.9],[3,2,0,0,0,0,1,1.025,0,13.8,1,1.1,0.9],[4,1,0,0,0,0,1,1,0,230,1,1.1,0.9],[5,1,125,50,0,0,1,1,0,230,1,1.1,0.9],[6,1,90,30,0,0,1,1,0,230,1,1.1,0.9],[7,1,0,0,0,0,1,1,0,230,1,1.1,0.9],[8,1,100,35,0,0,1,1,0,230,1,1.1,0.9],[9,1,0,0,0,0,1,1,0,230,1,1.1,0.9]],
+            gen: [[1,71.64,27.05,300,-300,1.04,100,1,250,10],[2,163,6.65,300,-300,1.025,100,1,300,10],[3,85,-10.86,300,-300,1.025,100,1,270,10]],
+            branch: [[1,4,0.0001,0.0576,0,250,250,250,0,0,1],[4,5,0.017,0.092,0.158,250,250,250,0,0,1],[5,6,0.039,0.17,0.358,150,150,150,0,0,1],[3,6,0.0001,0.0586,0,300,300,300,0,0,1],[6,7,0.0119,0.1008,0.209,150,150,150,0,0,1],[7,8,0.0085,0.072,0.149,250,250,250,0,0,1],[8,2,0.0001,0.0625,0,250,250,250,0,0,1],[8,9,0.032,0.161,0.306,250,250,250,0,0,1],[9,4,0.01,0.085,0.176,250,250,250,0,0,1]]
+        },
+        case14: {
+            name: 'IEEE 14-bus', baseMVA: 100,
+            bus: [[1,3,0,0,0,0,1,1.06,0,0,1,1.06,0.94],[2,2,21.7,12.7,0,0,1,1.045,0,0,1,1.06,0.94],[3,2,94.2,19,0,0,1,1.01,0,0,1,1.06,0.94],[4,1,47.8,-3.9,0,0,1,1,0,0,1,1.06,0.94],[5,1,7.6,1.6,0,0,1,1,0,0,1,1.06,0.94],[6,2,11.2,7.5,0,0,1,1.07,0,0,1,1.06,0.94],[7,1,0,0,0,0,1,1,0,0,1,1.06,0.94],[8,2,0,0,0,0,1,1.09,0,0,1,1.06,0.94],[9,1,29.5,16.6,0,19,1,1,0,0,1,1.06,0.94],[10,1,9,5.8,0,0,1,1,0,0,1,1.06,0.94],[11,1,3.5,1.8,0,0,1,1,0,0,1,1.06,0.94],[12,1,6.1,1.6,0,0,1,1,0,0,1,1.06,0.94],[13,1,13.5,5.8,0,0,1,1,0,0,1,1.06,0.94],[14,1,14.9,5,0,0,1,1,0,0,1,1.06,0.94]],
+            gen: [[1,232.4,-16.9,10,0,1.06,100,1,332.4,0],[2,40,42.4,50,-40,1.045,100,1,140,0],[3,0,23.4,40,0,1.01,100,1,100,0],[6,0,12.2,24,-6,1.07,100,1,100,0],[8,0,17.4,24,-6,1.09,100,1,100,0]],
+            branch: [[1,2,0.01938,0.05917,0.0528,472,472,472,0,0,1],[1,5,0.05403,0.22304,0.0492,128,128,128,0,0,1],[2,3,0.04699,0.19797,0.0438,145,145,145,0,0,1],[2,4,0.05811,0.17632,0.034,132,132,132,0,0,1],[2,5,0.05695,0.17388,0.0346,136,136,136,0,0,1],[3,4,0.06701,0.17103,0.0128,65,65,65,0,0,1],[4,5,0.01335,0.04211,0,0,0,0,0,0,1],[4,7,0.0001,0.20912,0,0,0,0,0.978,0,1],[4,9,0.0001,0.55618,0,0,0,0,0.969,0,1],[5,6,0.0001,0.25202,0,0,0,0,0.932,0,1],[6,11,0.09498,0.1989,0,0,0,0,0,0,1],[6,12,0.12291,0.25581,0,0,0,0,0,0,1],[6,13,0.06615,0.13027,0,0,0,0,0,0,1],[7,8,0.0001,0.17615,0,0,0,0,0,0,1],[7,9,0.11001,0.2064,0,0,0,0,0,0,1],[9,10,0.03181,0.0845,0,0,0,0,0,0,1],[9,14,0.12711,0.27038,0,0,0,0,0,0,1],[10,11,0.08205,0.19207,0,0,0,0,0,0,1],[12,13,0.22092,0.19988,0,0,0,0,0,0,1],[13,14,0.17093,0.34802,0,0,0,0,0,0,1]]
+        },
+        case30: {
+            name: 'IEEE 30-bus', baseMVA: 100,
+            bus: [[1,3,0,0,0,0,1,1.06,0,132,1,1.05,0.95],[2,2,21.7,12.7,0,0,1,1.043,0,132,1,1.1,0.95],[3,1,2.4,1.2,0,0,1,1,0,132,1,1.05,0.95],[4,1,7.6,1.6,0,0,1,1,0,132,1,1.05,0.95],[5,2,94.2,19,0,0,1,1.01,0,132,1,1.1,0.95],[6,1,0,0,0,0,1,1,0,132,1,1.05,0.95],[7,1,22.8,10.9,0,0,1,1,0,132,1,1.05,0.95],[8,2,30,30,0,0,1,1.01,0,132,1,1.1,0.95],[9,1,0,0,0,0,1,1,0,1,1,1.05,0.95],[10,1,5.8,2,0,19,1,1,0,33,1,1.05,0.95],[11,2,0,0,0,0,1,1.082,0,11,1,1.1,0.95],[12,1,11.2,7.5,0,0,1,1,0,33,1,1.05,0.95],[13,2,0,0,0,0,1,1.071,0,11,1,1.1,0.95],[14,1,6.2,1.6,0,0,1,1,0,33,1,1.05,0.95],[15,1,8.2,2.5,0,0,1,1,0,33,1,1.05,0.95],[16,1,3.5,1.8,0,0,1,1,0,33,1,1.05,0.95],[17,1,9,5.8,0,0,1,1,0,33,1,1.05,0.95],[18,1,3.2,0.9,0,0,1,1,0,33,1,1.05,0.95],[19,1,9.5,3.4,0,0,1,1,0,33,1,1.05,0.95],[20,1,2.2,0.7,0,0,1,1,0,33,1,1.05,0.95],[21,1,17.5,11.2,0,0,1,1,0,33,1,1.05,0.95],[22,1,0,0,0,0,1,1,0,33,1,1.05,0.95],[23,1,3.2,1.6,0,0,1,1,0,33,1,1.05,0.95],[24,1,8.7,6.7,0,4.3,1,1,0,33,1,1.05,0.95],[25,1,0,0,0,0,1,1,0,33,1,1.05,0.95],[26,1,3.5,2.3,0,0,1,1,0,33,1,1.05,0.95],[27,1,0,0,0,0,1,1,0,33,1,1.05,0.95],[28,1,0,0,0,0,1,1,0,132,1,1.05,0.95],[29,1,2.4,0.9,0,0,1,1,0,33,1,1.05,0.95],[30,1,10.6,1.9,0,0,1,1,0,33,1,1.05,0.95]],
+            gen: [[1,260.2,-16.1,10,-20,1.06,100,1,360.2,0],[2,40,50,50,-20,1.043,100,1,140,0],[5,0,37,40,-15,1.01,100,1,100,0],[8,0,37.3,40,-15,1.01,100,1,100,0],[11,0,16.2,24,-10,1.082,100,1,100,0],[13,0,10.6,24,-10,1.071,100,1,100,0]],
+            branch: [[1,2,0.0192,0.0575,0.0528,130,130,130,0,0,1],[1,3,0.0452,0.1852,0.0408,130,130,130,0,0,1],[2,4,0.057,0.1737,0.0368,65,65,65,0,0,1],[3,4,0.0132,0.0379,0.0084,130,130,130,0,0,1],[2,5,0.0472,0.1983,0.0418,130,130,130,0,0,1],[2,6,0.0581,0.1763,0.0374,65,65,65,0,0,1],[4,6,0.0119,0.0414,0.009,90,90,90,0,0,1],[5,7,0.046,0.116,0.0204,70,70,70,0,0,1],[6,7,0.0267,0.082,0.017,130,130,130,0,0,1],[6,8,0.012,0.042,0.009,32,32,32,0,0,1],[6,9,0.0001,0.208,0,65,65,65,0.978,0,1],[6,10,0.0001,0.556,0,32,32,32,0.969,0,1],[9,11,0.0001,0.208,0,65,65,65,0,0,1],[9,10,0.0001,0.11,0,65,65,65,0,0,1],[4,12,0.0001,0.256,0,65,65,65,0.932,0,1],[12,13,0.0001,0.14,0,65,65,65,0,0,1],[12,14,0.1231,0.2559,0,32,32,32,0,0,1],[12,15,0.0662,0.1304,0,32,32,32,0,0,1],[12,16,0.0945,0.1987,0,32,32,32,0,0,1],[14,15,0.221,0.1997,0,16,16,16,0,0,1],[16,17,0.0524,0.1923,0,16,16,16,0,0,1],[15,18,0.1073,0.2185,0,16,16,16,0,0,1],[18,19,0.0639,0.1292,0,16,16,16,0,0,1],[19,20,0.034,0.068,0,32,32,32,0,0,1],[10,20,0.0936,0.209,0,32,32,32,0,0,1],[10,17,0.0324,0.0845,0,32,32,32,0,0,1],[10,21,0.0348,0.0749,0,32,32,32,0,0,1],[10,22,0.0727,0.1499,0,32,32,32,0,0,1],[21,22,0.0116,0.0236,0,32,32,32,0,0,1],[15,23,0.1,0.202,0,16,16,16,0,0,1],[22,24,0.115,0.179,0,16,16,16,0,0,1],[23,24,0.132,0.27,0,16,16,16,0,0,1],[24,25,0.1885,0.3292,0,16,16,16,0,0,1],[25,26,0.2544,0.38,0,16,16,16,0,0,1],[25,27,0.1093,0.2087,0,16,16,16,0,0,1],[28,27,0.0001,0.396,0,65,65,65,0.968,0,1],[27,29,0.2198,0.4153,0,16,16,16,0,0,1],[27,30,0.3202,0.6027,0,16,16,16,0,0,1],[29,30,0.2399,0.4533,0,16,16,16,0,0,1],[8,28,0.0636,0.2,0.0428,32,32,32,0,0,1],[6,28,0.0169,0.0599,0.013,32,32,32,0,0,1]]
+        }
+    };
+
+    // ============================================================
+    // 改善されたランダムケース生成
+    // ============================================================
+    function generateRandomCase(nBus, qpRatio = 0.3) {
+        log(`\n=== ランダム ${nBus}-bus ケース生成 ===`, 'info');
+        
+        const buses = [], gens = [], branches = [];
+        const baseMVA = 100;
+        
+        // 発電機バス数（約15%、最低3）
+        const nGen = Math.max(3, Math.floor(nBus * 0.15));
+        const genBuses = new Set([1]); // Bus 1 = Slack
+        
+        // 発電機バスをグリッド状に分散配置
+        const step = Math.floor(nBus / nGen);
+        for (let i = 1; i < nGen; i++) {
+            const candidate = Math.min(1 + i * step, nBus);
+            if (!genBuses.has(candidate)) genBuses.add(candidate);
+        }
+        
+        log(`発電機バス: ${[...genBuses].join(', ')}`, 'info');
+        
+        // 負荷設定（発電機バス以外に負荷）
+        let totalPd = 0, totalQd = 0;
+        for (let i = 1; i <= nBus; i++) {
+            const isGen = genBuses.has(i);
+            const type = i === 1 ? 3 : (isGen ? 2 : 1);
+            
+            // 負荷：発電機バスは小さく、他は中程度
+            let Pd, Qd;
+            if (isGen) {
+                Pd = 5 + Math.random() * 10;
+            } else {
+                Pd = 20 + Math.random() * 40;
+            }
+            Qd = Pd * qpRatio * (0.8 + Math.random() * 0.4);
+            
+            totalPd += Pd;
+            totalQd += Qd;
+            
+            // 初期電圧は全て1.0（フラットスタート）
+            buses.push([i, type, Pd, Qd, 0, 0, 1, 1.0, 0, 230, 1, 1.1, 0.9]);
+        }
+        
+        log(`総負荷: P=${totalPd.toFixed(1)} MW, Q=${totalQd.toFixed(1)} Mvar`, 'info');
+        
+        // 発電設定（負荷の110%を確保）
+        const totalPgTarget = totalPd * 1.1;
+        const pgPerGen = totalPgTarget / (nGen - 1); // スラック以外で分担
+        
+        let totalPgSet = 0;
+        for (const gBus of genBuses) {
+            if (gBus === 1) {
+                // スラックバス：P=0（残りを吸収）
+                gens.push([1, 0, 0, 500, -300, 1.04, 100, 1, 600, 0]);
+                buses[0][7] = 1.04;
+            } else {
+                const Pg = pgPerGen * (0.9 + Math.random() * 0.2);
+                const Vm = 1.02;
+                gens.push([gBus, Pg, 0, 300, -150, Vm, 100, 1, 400, 0]);
+                buses[gBus - 1][7] = Vm;
+                totalPgSet += Pg;
+            }
+        }
+        
+        log(`設定発電(スラック除く): ${totalPgSet.toFixed(1)} MW`, 'info');
+        log(`スラック供給予想: ${(totalPd - totalPgSet).toFixed(1)} MW`, 'info');
+        
+        // ブランチ生成：最小全域木 + メッシュ
+        // Step 1: 確実に接続されたツリー構造
+        const connected = new Set([1]);
+        const unconnected = new Set();
+        for (let i = 2; i <= nBus; i++) unconnected.add(i);
+        
+        while (unconnected.size > 0) {
+            // 未接続バスから1つ選ぶ
+            const fromArr = [...unconnected];
+            const from = fromArr[Math.floor(Math.random() * fromArr.length)];
+            
+            // 接続済みバスから1つ選ぶ（なるべく近いバス）
+            const toArr = [...connected];
+            // 距離が近いバスを優先（インデックス差が小さい）
+            toArr.sort((a, b) => Math.abs(a - from) - Math.abs(b - from));
+            const to = toArr[0];
+            
+            // インピーダンス（適度な値）
+            const distance = Math.abs(from - to);
+            const r = 0.005 + 0.002 * distance + Math.random() * 0.01;
+            const x = 0.02 + 0.01 * distance + Math.random() * 0.03;
+            const b = 0.01 + Math.random() * 0.02;
+            
+            branches.push([Math.min(from, to), Math.max(from, to), r, x, b, 200, 200, 200, 0, 0, 1]);
+            
+            connected.add(from);
+            unconnected.delete(from);
+        }
+        
+        log(`ツリーブランチ数: ${branches.length}`, 'info');
+        
+        // Step 2: メッシュ接続追加（約30%）
+        const nMesh = Math.floor(nBus * 0.3);
+        let meshAdded = 0;
+        for (let k = 0; k < nMesh * 3 && meshAdded < nMesh; k++) {
+            const i = Math.floor(Math.random() * nBus) + 1;
+            const j = Math.floor(Math.random() * nBus) + 1;
+            if (i === j) continue;
+            
+            const mi = Math.min(i, j), ma = Math.max(i, j);
+            
+            // 電気的に近いバス間のみ（インデックス差が小さい）
+            if (ma - mi > Math.ceil(nBus / 5)) continue;
+            
+            // 重複チェック
+            const exists = branches.some(br => br[0] === mi && br[1] === ma);
+            if (exists) continue;
+            
+            const r = 0.008 + Math.random() * 0.02;
+            const x = 0.03 + Math.random() * 0.06;
+            const b = 0.01 + Math.random() * 0.015;
+            
+            branches.push([mi, ma, r, x, b, 200, 200, 200, 0, 0, 1]);
+            meshAdded++;
+        }
+        
+        log(`メッシュブランチ追加: ${meshAdded}`, 'info');
+        log(`総ブランチ数: ${branches.length}`, 'info');
+        
+        return { name: `Random ${nBus}-bus`, baseMVA, bus: buses, gen: gens, branch: branches };
+    }
+
+    // ============================================================
+    // Power Flow Engine
+    // ============================================================
+    class PowerFlowEngine {
+        constructor(caseData) {
+            this.baseMVA = caseData.baseMVA;
+            this.busData = JSON.parse(JSON.stringify(caseData.bus));
+            this.genData = JSON.parse(JSON.stringify(caseData.gen));
+            this.branchData = JSON.parse(JSON.stringify(caseData.branch));
+            this.nBus = this.busData.length;
+            this.reset();
+        }
+
+        reset() {
+            this.V = [];
+            this.delta = [];
+            this.Pgen = [];
+            this.Qgen = [];
+            this.slackBus = -1;
+            this.pvBuses = [];
+            this.pqBuses = [];
+            this.Ybus = { re: [], im: [] };
+            this.initialize();
+        }
+
+        initialize() {
+            for (let i = 0; i < this.nBus; i++) {
+                const bus = this.busData[i];
+                this.V[i] = bus[7];
+                this.delta[i] = bus[8] * Math.PI / 180;
+                if (bus[1] === 3) this.slackBus = i;
+                else if (bus[1] === 2) this.pvBuses.push(i);
+                else this.pqBuses.push(i);
+            }
+            
+            this.Pgen = new Array(this.nBus).fill(0);
+            this.Qgen = new Array(this.nBus).fill(0);
+            for (const gen of this.genData) {
+                const idx = gen[0] - 1;
+                this.Pgen[idx] += gen[1] / this.baseMVA;
+                this.Qgen[idx] += gen[2] / this.baseMVA;
+                if (this.pvBuses.includes(idx) || idx === this.slackBus) {
+                    this.V[idx] = gen[5];
+                }
+            }
+            
+            this.buildYbus();
+        }
+
+        buildYbus() {
+            for (let i = 0; i < this.nBus; i++) {
+                this.Ybus.re[i] = new Array(this.nBus).fill(0);
+                this.Ybus.im[i] = new Array(this.nBus).fill(0);
+            }
+            
+            for (const br of this.branchData) {
+                const f = br[0] - 1, t = br[1] - 1;
+                if (f < 0 || f >= this.nBus || t < 0 || t >= this.nBus) continue;
+                
+                let r = br[2], x = br[3];
+                const b = br[4], tap = br[8] || 1;
+                
+                if (Math.abs(r) < 1e-10 && Math.abs(x) < 1e-10) continue;
+                if (Math.abs(x) < 1e-10) x = 1e-6;
+                
+                const z2 = r * r + x * x;
+                const g = r / z2;
+                const bS = -x / z2;
+                const tp = tap === 0 ? 1 : tap;
+                
+                this.Ybus.re[f][t] -= g / tp;
+                this.Ybus.im[f][t] -= bS / tp;
+                this.Ybus.re[t][f] -= g / tp;
+                this.Ybus.im[t][f] -= bS / tp;
+                this.Ybus.re[f][f] += g / (tp * tp);
+                this.Ybus.im[f][f] += bS / (tp * tp) + b / 2;
+                this.Ybus.re[t][t] += g;
+                this.Ybus.im[t][t] += bS + b / 2;
+            }
+            
+            // Shunt elements
+            for (let i = 0; i < this.nBus; i++) {
+                this.Ybus.re[i][i] += this.busData[i][4] / this.baseMVA;
+                this.Ybus.im[i][i] += this.busData[i][5] / this.baseMVA;
+            }
+        }
+
+        calcPower() {
+            const P = new Array(this.nBus).fill(0);
+            const Q = new Array(this.nBus).fill(0);
+            for (let i = 0; i < this.nBus; i++) {
+                for (let j = 0; j < this.nBus; j++) {
+                    const th = this.delta[i] - this.delta[j];
+                    P[i] += this.V[i] * this.V[j] * (this.Ybus.re[i][j] * Math.cos(th) + this.Ybus.im[i][j] * Math.sin(th));
+                    Q[i] += this.V[i] * this.V[j] * (this.Ybus.re[i][j] * Math.sin(th) - this.Ybus.im[i][j] * Math.cos(th));
+                }
+            }
+            return { P, Q };
+        }
+
+        // Newton-Raphson AC潮流
+        runAC(tol = 1e-6, maxIter = 100) {
+            for (let iter = 0; iter < maxIter; iter++) {
+                const { P, Q } = this.calcPower();
+                const dP = [], dQ = [];
+                
+                for (let i = 0; i < this.nBus; i++) {
+                    if (i === this.slackBus) continue;
+                    const Pl = this.busData[i][2] / this.baseMVA;
+                    const Ql = this.busData[i][3] / this.baseMVA;
+                    dP.push({ bus: i, value: this.Pgen[i] - Pl - P[i] });
+                    if (this.pqBuses.includes(i)) {
+                        dQ.push({ bus: i, value: this.Qgen[i] - Ql - Q[i] });
+                    }
+                }
+                
+                const maxErr = Math.max(
+                    dP.length > 0 ? Math.max(...dP.map(d => Math.abs(d.value))) : 0,
+                    dQ.length > 0 ? Math.max(...dQ.map(d => Math.abs(d.value))) : 0
+                );
+                
+                if (maxErr < tol) {
+                    return { converged: true, iterations: iter + 1, error: maxErr };
+                }
+                
+                // Build Jacobian and solve
+                const f = [...dP.map(d => d.value), ...dQ.map(d => d.value)];
+                const J = this.buildJacobian(dP, dQ);
+                const dx = this.solveLU(J, f);
+                
+                if (!dx || dx.some(v => !isFinite(v))) {
+                    return { converged: false, iterations: iter + 1, error: maxErr };
+                }
+                
+                // Update
+                let idx = 0;
+                for (const dp of dP) this.delta[dp.bus] += dx[idx++];
+                for (const dq of dQ) this.V[dq.bus] = Math.max(0.5, Math.min(1.5, this.V[dq.bus] + dx[idx++]));
+            }
+            
+            return { converged: false, iterations: maxIter, error: Infinity };
+        }
+
+        // DC潮流計算
+        runDC() {
+            // DC潮流: P = B * θ
+            // B行列（サセプタンス行列）を構築
+            const buses = [];
+            for (let i = 0; i < this.nBus; i++) {
+                if (i !== this.slackBus) buses.push(i);
+            }
+            
+            const n = buses.length;
+            const B = Array(n).fill(null).map(() => Array(n).fill(0));
+            
+            // B行列構築（-Im(Y)）
+            for (let i = 0; i < n; i++) {
+                for (let j = 0; j < n; j++) {
+                    B[i][j] = -this.Ybus.im[buses[i]][buses[j]];
+                }
+            }
+            
+            // 有効電力ベクトル
+            const Pinj = buses.map(i => {
+                const Pl = this.busData[i][2] / this.baseMVA;
+                return this.Pgen[i] - Pl;
+            });
+            
+            // 角度を解く
+            const theta = this.solveLU(B, Pinj);
+            
+            // 結果格納
+            const deltaDC = new Array(this.nBus).fill(0);
+            if (theta && theta.every(v => isFinite(v))) {
+                for (let i = 0; i < n; i++) {
+                    deltaDC[buses[i]] = theta[i];
+                }
+            }
+            
+            // DC潮流による有効電力計算
+            const Pdc = new Array(this.nBus).fill(0);
+            for (const br of this.branchData) {
+                const f = br[0] - 1, t = br[1] - 1;
+                const x = br[3];
+                if (Math.abs(x) < 1e-10) continue;
+                const b = -1 / x;  // サセプタンス
+                const Pft = b * (deltaDC[f] - deltaDC[t]);
+                Pdc[f] -= Pft;
+                Pdc[t] += Pft;
+            }
+            
+            return { delta: deltaDC, P: Pdc };
+        }
+
+        buildJacobian(dP, dQ) {
+            const nP = dP.length, nQ = dQ.length, n = nP + nQ;
+            const J = Array(n).fill(null).map(() => Array(n).fill(0));
+            
+            for (let i = 0; i < nP; i++) {
+                const bi = dP[i].bus;
+                for (let j = 0; j < nP; j++) J[i][j] = this.dPdD(bi, dP[j].bus);
+                for (let j = 0; j < nQ; j++) J[i][nP + j] = this.dPdV(bi, dQ[j].bus);
+            }
+            for (let i = 0; i < nQ; i++) {
+                const bi = dQ[i].bus;
+                for (let j = 0; j < nP; j++) J[nP + i][j] = this.dQdD(bi, dP[j].bus);
+                for (let j = 0; j < nQ; j++) J[nP + i][nP + j] = this.dQdV(bi, dQ[j].bus);
+            }
+            return J;
+        }
+
+        dPdD(i, j) {
+            if (i === j) {
+                let s = 0;
+                for (let k = 0; k < this.nBus; k++) {
+                    if (k === i) continue;
+                    const th = this.delta[i] - this.delta[k];
+                    s += this.V[i] * this.V[k] * (-this.Ybus.re[i][k] * Math.sin(th) + this.Ybus.im[i][k] * Math.cos(th));
+                }
+                return s;
+            }
+            const th = this.delta[i] - this.delta[j];
+            return this.V[i] * this.V[j] * (this.Ybus.re[i][j] * Math.sin(th) - this.Ybus.im[i][j] * Math.cos(th));
+        }
+
+        dPdV(i, j) {
+            if (i === j) {
+                let s = 2 * this.V[i] * this.Ybus.re[i][i];
+                for (let k = 0; k < this.nBus; k++) {
+                    if (k === i) continue;
+                    const th = this.delta[i] - this.delta[k];
+                    s += this.V[k] * (this.Ybus.re[i][k] * Math.cos(th) + this.Ybus.im[i][k] * Math.sin(th));
+                }
+                return s;
+            }
+            const th = this.delta[i] - this.delta[j];
+            return this.V[i] * (this.Ybus.re[i][j] * Math.cos(th) + this.Ybus.im[i][j] * Math.sin(th));
+        }
+
+        dQdD(i, j) {
+            if (i === j) {
+                let s = 0;
+                for (let k = 0; k < this.nBus; k++) {
+                    if (k === i) continue;
+                    const th = this.delta[i] - this.delta[k];
+                    s += this.V[i] * this.V[k] * (this.Ybus.re[i][k] * Math.cos(th) + this.Ybus.im[i][k] * Math.sin(th));
+                }
+                return s;
+            }
+            const th = this.delta[i] - this.delta[j];
+            return -this.V[i] * this.V[j] * (this.Ybus.re[i][j] * Math.cos(th) + this.Ybus.im[i][j] * Math.sin(th));
+        }
+
+        dQdV(i, j) {
+            if (i === j) {
+                let s = -2 * this.V[i] * this.Ybus.im[i][i];
+                for (let k = 0; k < this.nBus; k++) {
+                    if (k === i) continue;
+                    const th = this.delta[i] - this.delta[k];
+                    s += this.V[k] * (this.Ybus.re[i][k] * Math.sin(th) - this.Ybus.im[i][k] * Math.cos(th));
+                }
+                return s;
+            }
+            const th = this.delta[i] - this.delta[j];
+            return this.V[i] * (this.Ybus.re[i][j] * Math.sin(th) - this.Ybus.im[i][j] * Math.cos(th));
+        }
+
+        solveLU(A, b) {
+            const n = A.length;
+            if (n === 0) return [];
+            try {
+                const LU = A.map(r => [...r]);
+                const P = Array.from({ length: n }, (_, i) => i);
+                for (let k = 0; k < n; k++) {
+                    let mx = Math.abs(LU[k][k]), mi = k;
+                    for (let i = k + 1; i < n; i++) {
+                        if (Math.abs(LU[i][k]) > mx) { mx = Math.abs(LU[i][k]); mi = i; }
+                    }
+                    if (mi !== k) { [LU[k], LU[mi]] = [LU[mi], LU[k]]; [P[k], P[mi]] = [P[mi], P[k]]; }
+                    if (Math.abs(LU[k][k]) < 1e-12) LU[k][k] = 1e-10;
+                    for (let i = k + 1; i < n; i++) {
+                        LU[i][k] /= LU[k][k];
+                        for (let j = k + 1; j < n; j++) LU[i][j] -= LU[i][k] * LU[k][j];
+                    }
+                }
+                const y = new Array(n).fill(0);
+                for (let i = 0; i < n; i++) { y[i] = b[P[i]]; for (let j = 0; j < i; j++) y[i] -= LU[i][j] * y[j]; }
+                const x = new Array(n).fill(0);
+                for (let i = n - 1; i >= 0; i--) { x[i] = y[i]; for (let j = i + 1; j < n; j++) x[i] -= LU[i][j] * x[j]; x[i] /= LU[i][i]; }
+                return x;
+            } catch (e) { return null; }
+        }
+    }
+
+    // ============================================================
+    // Analysis
+    // ============================================================
+    let currentCase = null;
+
+    function runAnalysis() {
+        clearLog();
+        
+        const caseName = document.getElementById('caseSelect').value;
+        const tol = parseFloat(document.getElementById('tolSelect').value);
+        const qpRatio = parseFloat(document.getElementById('qpRatio').value);
+        
+        log(`=== 解析開始: ${caseName} ===`, 'info');
+        
+        // ケースデータ取得
+        if (caseName.startsWith('random')) {
+            const n = parseInt(caseName.replace('random', ''));
+            currentCase = generateRandomCase(n, qpRatio);
+        } else {
+            currentCase = CASES[caseName];
+        }
+        
+        if (!currentCase) {
+            log('ケースが見つかりません', 'error');
+            return;
+        }
+        
+        // AC潮流計算
+        log('\n--- AC潮流計算 (Newton-Raphson) ---', 'info');
+        const engineAC = new PowerFlowEngine(currentCase);
+        const acResult = engineAC.runAC(tol, 100);
+        
+        if (acResult.converged) {
+            log(`✓ 収束: ${acResult.iterations}反復, 誤差=${acResult.error.toExponential(2)}`, 'success');
+        } else {
+            log(`✗ 発散: ${acResult.iterations}反復`, 'error');
+            // 発散してもDC比較は続ける
+        }
+        
+        // DC潮流計算
+        log('\n--- DC潮流計算 ---', 'info');
+        const engineDC = new PowerFlowEngine(currentCase);
+        const dcResult = engineDC.runDC();
+        log('DC潮流計算完了', 'success');
+        
+        // 比較分析
+        analyzeResults(engineAC, engineDC, dcResult, acResult.converged);
+    }
+
+    function analyzeResults(engineAC, engineDC, dcResult, acConverged) {
+        const nBus = engineAC.nBus;
+        const baseMVA = engineAC.baseMVA;
+        
+        // AC結果から電力計算
+        const acPower = engineAC.calcPower();
+        
+        // 誤差統計
+        let sumDeltaErr = 0, maxDeltaErr = 0;
+        let sumPErr = 0, maxPErr = 0;
+        let sumVErr = 0, maxVErr = 0;
+        let sumQMismatch = 0, maxQMismatch = 0;
+        
+        const busResults = [];
+        const qResults = [];
+        
+        for (let i = 0; i < nBus; i++) {
+            const bus = engineAC.busData[i];
+            const type = bus[1] === 3 ? 'Slack' : (bus[1] === 2 ? 'PV' : 'PQ');
+            
+            // 角度誤差 (DC vs AC)
+            const deltaAC = engineAC.delta[i] * 180 / Math.PI;
+            const deltaDC = dcResult.delta[i] * 180 / Math.PI;
+            const deltaErr = Math.abs(deltaDC - deltaAC);
+            sumDeltaErr += deltaErr;
+            maxDeltaErr = Math.max(maxDeltaErr, deltaErr);
+            
+            // 電圧誤差 (DC assumes V=1.0)
+            const Vac = engineAC.V[i];
+            const vErr = Math.abs(1.0 - Vac);
+            sumVErr += vErr;
+            maxVErr = Math.max(maxVErr, vErr);
+            
+            // 有効電力誤差
+            const Pac = acPower.P[i] * baseMVA;
+            const Pdc = dcResult.P[i] * baseMVA;
+            const pErr = Math.abs(Pac) > 0.1 ? Math.abs(Pdc - Pac) / Math.abs(Pac) * 100 : 0;
+            sumPErr += pErr;
+            maxPErr = Math.max(maxPErr, pErr);
+            
+            busResults.push({
+                bus: i + 1, type,
+                Vac: Vac.toFixed(4),
+                deltaAC: deltaAC.toFixed(2),
+                deltaDC: deltaDC.toFixed(2),
+                deltaErr: deltaErr.toFixed(3),
+                Pac: Pac.toFixed(2),
+                Pdc: Pdc.toFixed(2),
+                pErr: pErr.toFixed(1)
+            });
+            
+            // 無効電力分析
+            const Qload = bus[3];
+            const Qgen = engineAC.Qgen[i] * baseMVA;
+            const Qcalc = acPower.Q[i] * baseMVA;
+            const Qmismatch = Qgen - Qload / baseMVA * baseMVA - Qcalc;
+            
+            // 無効電力による電圧偏差の推定
+            // ΔV ≈ ΔQ / B_ii (簡易推定)
+            const Bii = Math.abs(engineAC.Ybus.im[i][i]);
+            const dVdueToQ = Bii > 0.1 ? Math.abs(Qmismatch / baseMVA) / Bii : 0;
+            
+            sumQMismatch += Math.abs(Qmismatch);
+            maxQMismatch = Math.max(maxQMismatch, Math.abs(Qmismatch));
+            
+            qResults.push({
+                bus: i + 1, type,
+                Qload: Qload.toFixed(1),
+                Qgen: Qgen.toFixed(1),
+                Qcalc: Qcalc.toFixed(1),
+                Qmismatch: Qmismatch.toFixed(2),
+                dVdueToQ: dVdueToQ.toFixed(4)
+            });
+        }
+        
+        // メトリクス表示
+        const avgDeltaErr = sumDeltaErr / nBus;
+        const avgPErr = sumPErr / nBus;
+        const avgVErr = sumVErr / nBus;
+        const avgQMismatch = sumQMismatch / nBus;
+        
+        document.getElementById('metricsGrid').innerHTML = `
+            <div class="metric ${avgDeltaErr < 1 ? 'good' : avgDeltaErr < 5 ? 'warn' : 'bad'}">
+                <div class="metric-value">${avgDeltaErr.toFixed(2)}°</div>
+                <div class="metric-label">平均角度誤差 (DC-AC)</div>
+            </div>
+            <div class="metric ${maxDeltaErr < 3 ? 'good' : maxDeltaErr < 10 ? 'warn' : 'bad'}">
+                <div class="metric-value">${maxDeltaErr.toFixed(2)}°</div>
+                <div class="metric-label">最大角度誤差</div>
+            </div>
+            <div class="metric ${avgPErr < 5 ? 'good' : avgPErr < 15 ? 'warn' : 'bad'}">
+                <div class="metric-value">${avgPErr.toFixed(1)}%</div>
+                <div class="metric-label">平均P誤差</div>
+            </div>
+            <div class="metric ${maxPErr < 10 ? 'good' : maxPErr < 30 ? 'warn' : 'bad'}">
+                <div class="metric-value">${maxPErr.toFixed(1)}%</div>
+                <div class="metric-label">最大P誤差</div>
+            </div>
+            <div class="metric ${avgVErr < 0.02 ? 'good' : avgVErr < 0.05 ? 'warn' : 'bad'}">
+                <div class="metric-value">${(avgVErr * 100).toFixed(1)}%</div>
+                <div class="metric-label">平均V偏差(from 1.0)</div>
+            </div>
+            <div class="metric ${acConverged ? 'good' : 'bad'}">
+                <div class="metric-value">${acConverged ? '✓' : '✗'}</div>
+                <div class="metric-label">AC収束</div>
+            </div>
+        `;
+        
+        document.getElementById('qMetricsGrid').innerHTML = `
+            <div class="metric ${avgQMismatch < 5 ? 'good' : avgQMismatch < 20 ? 'warn' : 'bad'}">
+                <div class="metric-value">${avgQMismatch.toFixed(1)}</div>
+                <div class="metric-label">平均Q (Mvar)</div>
+            </div>
+            <div class="metric ${maxQMismatch < 20 ? 'good' : maxQMismatch < 50 ? 'warn' : 'bad'}">
+                <div class="metric-value">${maxQMismatch.toFixed(1)}</div>
+                <div class="metric-label">最大Q (Mvar)</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value">${(sumQMismatch).toFixed(0)}</div>
+                <div class="metric-label">総Q流通 (Mvar)</div>
+            </div>
+            <div class="metric ${maxVErr < 0.05 ? 'good' : maxVErr < 0.1 ? 'warn' : 'bad'}">
+                <div class="metric-value">${(maxVErr * 100).toFixed(1)}%</div>
+                <div class="metric-label">最大V偏差</div>
+            </div>
+        `;
+        
+        // テーブル表示
+        const busTableBody = document.querySelector('#busTable tbody');
+        busTableBody.innerHTML = busResults.map(r => `
+            <tr>
+                <td>${r.bus}</td>
+                <td>${r.type}</td>
+                <td class="num">${r.Vac}</td>
+                <td class="num">${r.deltaAC}</td>
+                <td class="num">${r.deltaDC}</td>
+                <td class="num" style="color: ${parseFloat(r.deltaErr) > 3 ? '#ef4444' : parseFloat(r.deltaErr) > 1 ? '#f59e0b' : '#10b981'}">${r.deltaErr}</td>
+                <td class="num">${r.Pac}</td>
+                <td class="num">${r.Pdc}</td>
+                <td class="num" style="color: ${parseFloat(r.pErr) > 15 ? '#ef4444' : parseFloat(r.pErr) > 5 ? '#f59e0b' : '#10b981'}">${r.pErr}</td>
+            </tr>
+        `).join('');
+        
+        const qTableBody = document.querySelector('#qTable tbody');
+        qTableBody.innerHTML = qResults.map(r => `
+            <tr>
+                <td>${r.bus}</td>
+                <td>${r.type}</td>
+                <td class="num">${r.Qload}</td>
+                <td class="num">${r.Qgen}</td>
+                <td class="num">${r.Qcalc}</td>
+                <td class="num" style="color: ${Math.abs(parseFloat(r.Qmismatch)) > 10 ? '#ef4444' : '#10b981'}">${r.Qmismatch}</td>
+                <td class="num">${r.dVdueToQ}</td>
+            </tr>
+        `).join('');
+        
+        // チャート描画
+        drawAngleChart(busResults);
+        drawVoltageChart(engineAC, qResults);
+        
+        // DC法精度についてのサマリー
+        log('\n=== DC法精度サマリー ===', 'info');
+        log(`角度誤差: 平均 ${avgDeltaErr.toFixed(2)}°, 最大 ${maxDeltaErr.toFixed(2)}°`, avgDeltaErr < 3 ? 'success' : 'warning');
+        log(`有効電力誤差: 平均 ${avgPErr.toFixed(1)}%, 最大 ${maxPErr.toFixed(1)}%`, avgPErr < 10 ? 'success' : 'warning');
+        log(`電圧偏差(V=1.0仮定): 平均 ${(avgVErr*100).toFixed(1)}%, 最大 ${(maxVErr*100).toFixed(1)}%`, avgVErr < 0.03 ? 'success' : 'warning');
+        
+        log('\n=== DC法の仮定と誤差源 ===', 'info');
+        log('1. sin(θ) ≈ θ: 角度が大きいと誤差増大', 'info');
+        log(`   最大角度差: ${maxDeltaErr.toFixed(1)}° → sin誤差: ${(Math.sin(maxDeltaErr*Math.PI/180) - maxDeltaErr*Math.PI/180).toFixed(4)}`, 'info');
+        log('2. V = 1.0 p.u. 仮定: PVバス電圧設定を無視', 'info');
+        log(`   電圧範囲: ${Math.min(...engineAC.V).toFixed(3)} ~ ${Math.max(...engineAC.V).toFixed(3)} p.u.`, 'info');
+        log('3. 無効電力無視: Q-V関係が反映されない', 'info');
+        log(`   総Q流通: ${sumQMismatch.toFixed(0)} Mvar`, 'info');
+        log('4. 抵抗無視: 損失計算不可', 'info');
+        
+        // 無効電力の影響
+        log('\n=== 無効電力の影響 ===', 'info');
+        const highQBuses = qResults.filter(r => Math.abs(parseFloat(r.Qmismatch)) > 10);
+        if (highQBuses.length > 0) {
+            log(`高Q流通バス (|Q|>10Mvar): ${highQBuses.map(r => r.bus).join(', ')}`, 'warning');
+            log('これらのバスではDC法の誤差が大きくなる傾向', 'warning');
+        } else {
+            log('高Q流通バスなし - DC法は比較的正確', 'success');
+        }
+    }
+
+    function drawAngleChart(busResults) {
+        const canvas = document.getElementById('angleChart');
+        const ctx = canvas.getContext('2d');
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+        
+        const w = canvas.width, h = canvas.height;
+        const pad = { top: 30, right: 20, bottom: 40, left: 50 };
+        const pW = w - pad.left - pad.right;
+        const pH = h - pad.top - pad.bottom;
+        
+        ctx.fillStyle = '#12121a';
+        ctx.fillRect(0, 0, w, h);
+        
+        const deltaAC = busResults.map(r => parseFloat(r.deltaAC));
+        const deltaDC = busResults.map(r => parseFloat(r.deltaDC));
+        const minD = Math.min(...deltaAC, ...deltaDC, 0);
+        const maxD = Math.max(...deltaAC, ...deltaDC, 0);
+        const range = maxD - minD || 1;
+        
+        const n = busResults.length;
+        const barW = Math.min(pW / n / 2.5, 15);
+        
+        // Zero line
+        const zeroY = pad.top + (maxD / range) * pH;
+        ctx.strokeStyle = '#64748b';
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(pad.left, zeroY);
+        ctx.lineTo(w - pad.right, zeroY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        
+        // Bars
+        for (let i = 0; i < n; i++) {
+            const x = pad.left + (i + 0.5) / n * pW;
+            
+            // AC bar
+            const acY = pad.top + (maxD - deltaAC[i]) / range * pH;
+            ctx.fillStyle = '#3b82f6';
+            ctx.fillRect(x - barW, Math.min(acY, zeroY), barW, Math.abs(acY - zeroY));
+            
+            // DC bar
+            const dcY = pad.top + (maxD - deltaDC[i]) / range * pH;
+            ctx.fillStyle = '#10b981';
+            ctx.fillRect(x, Math.min(dcY, zeroY), barW, Math.abs(dcY - zeroY));
+        }
+        
+        // Labels
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '10px JetBrains Mono';
+        ctx.textAlign = 'center';
+        for (let i = 0; i < n; i += Math.ceil(n / 15)) {
+            const x = pad.left + (i + 0.5) / n * pW;
+            ctx.fillText(busResults[i].bus, x, h - pad.bottom + 15);
+        }
+        ctx.fillText('Bus', w / 2, h - 5);
+        
+        // Y axis
+        ctx.textAlign = 'right';
+        ctx.fillText(`${maxD.toFixed(0)}°`, pad.left - 5, pad.top + 10);
+        ctx.fillText(`${minD.toFixed(0)}°`, pad.left - 5, h - pad.bottom);
+        
+        // Legend
+        ctx.fillStyle = '#3b82f6';
+        ctx.fillRect(w - 100, 10, 12, 12);
+        ctx.fillStyle = '#10b981';
+        ctx.fillRect(w - 100, 26, 12, 12);
+        ctx.fillStyle = '#f1f5f9';
+        ctx.font = '10px Noto Sans JP';
+        ctx.textAlign = 'left';
+        ctx.fillText('AC', w - 85, 20);
+        ctx.fillText('DC', w - 85, 36);
+    }
+
+    function drawVoltageChart(engine, qResults) {
+        const canvas = document.getElementById('voltageChart');
+        const ctx = canvas.getContext('2d');
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+        
+        const w = canvas.width, h = canvas.height;
+        const pad = { top: 30, right: 60, bottom: 40, left: 50 };
+        const pW = w - pad.left - pad.right;
+        const pH = h - pad.top - pad.bottom;
+        
+        ctx.fillStyle = '#12121a';
+        ctx.fillRect(0, 0, w, h);
+        
+        const n = engine.nBus;
+        const V = engine.V;
+        const Q = qResults.map(r => parseFloat(r.Qcalc));
+        
+        const minV = Math.min(...V, 0.9);
+        const maxV = Math.max(...V, 1.1);
+        const minQ = Math.min(...Q, -50);
+        const maxQ = Math.max(...Q, 50);
+        
+        // V=1.0 line
+        const v10Y = pad.top + (maxV - 1.0) / (maxV - minV) * pH;
+        ctx.strokeStyle = 'rgba(239,68,68,0.5)';
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(pad.left, v10Y);
+        ctx.lineTo(w - pad.right, v10Y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        
+        // Voltage bars
+        const barW = Math.min(pW / n - 2, 12);
+        for (let i = 0; i < n; i++) {
+            const x = pad.left + (i + 0.5) / n * pW;
+            const vY = pad.top + (maxV - V[i]) / (maxV - minV) * pH;
+            const type = engine.busData[i][1];
+            ctx.fillStyle = type === 3 ? '#10b981' : type === 2 ? '#f59e0b' : '#3b82f6';
+            ctx.fillRect(x - barW / 2, Math.min(vY, v10Y), barW, Math.abs(vY - v10Y) || 1);
+        }
+        
+        // Q line
+        ctx.strokeStyle = '#ec4899';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let i = 0; i < n; i++) {
+            const x = pad.left + (i + 0.5) / n * pW;
+            const qY = pad.top + (maxQ - Q[i]) / (maxQ - minQ) * pH;
+            if (i === 0) ctx.moveTo(x, qY);
+            else ctx.lineTo(x, qY);
+        }
+        ctx.stroke();
+        
+        // Labels
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '10px JetBrains Mono';
+        ctx.textAlign = 'center';
+        ctx.fillText('Bus', w / 2, h - 5);
+        
+        // Y axes
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#3b82f6';
+        ctx.fillText(`${maxV.toFixed(2)}`, pad.left - 5, pad.top + 10);
+        ctx.fillText(`${minV.toFixed(2)}`, pad.left - 5, h - pad.bottom);
+        ctx.fillText('V', pad.left - 5, pad.top - 10);
+        
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#ec4899';
+        ctx.fillText(`${maxQ.toFixed(0)}`, w - pad.right + 5, pad.top + 10);
+        ctx.fillText(`${minQ.toFixed(0)}`, w - pad.right + 5, h - pad.bottom);
+        ctx.fillText('Q', w - pad.right + 5, pad.top - 10);
+    }
+
+    function regenerateRandom() {
+        const caseName = document.getElementById('caseSelect').value;
+        if (caseName.startsWith('random')) {
+            runAnalysis();
+        }
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+        runAnalysis();
+    });
+    </script>
+</body>
+</html>

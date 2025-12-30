@@ -1,0 +1,1426 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>潮流計算 収束可視化 - 直感的理解</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0f0f1a;
+            --bg-card: #1a1a2e;
+            --bg-surface: #252540;
+            --accent-blue: #4dabf7;
+            --accent-green: #51cf66;
+            --accent-orange: #ffa94d;
+            --accent-red: #ff6b6b;
+            --accent-purple: #cc5de8;
+            --accent-cyan: #22b8cf;
+            --text-primary: #e9ecef;
+            --text-secondary: #868e96;
+            --border: #3d3d5c;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 20px 0 30px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 25px;
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        /* Control Panel */
+        .control-panel {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .control-group label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        select, input[type="range"] {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+        }
+
+        input[type="range"] {
+            width: 120px;
+            padding: 0;
+            height: 6px;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--accent-cyan);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .btn {
+            font-family: 'JetBrains Mono', monospace;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+            color: var(--bg-dark);
+        }
+
+        .btn-secondary {
+            background: var(--bg-surface);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Main Grid */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .viz-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .viz-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .viz-title {
+            font-size: 1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .viz-title .icon {
+            font-size: 1.2rem;
+        }
+
+        .viz-body {
+            padding: 15px;
+            height: 400px;
+            position: relative;
+        }
+
+        .viz-body canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Info Panel */
+        .info-panel {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .info-stat {
+            background: var(--bg-surface);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .info-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: var(--accent-cyan);
+        }
+
+        .info-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 5px;
+        }
+
+        /* Explanation Panel */
+        .explanation {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .explanation h3 {
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            color: var(--accent-cyan);
+        }
+
+        .explanation-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .explanation-item {
+            background: var(--bg-surface);
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 3px solid var(--accent-purple);
+        }
+
+        .explanation-item h4 {
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+            color: var(--accent-orange);
+        }
+
+        .explanation-item p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* Legend */
+        .legend {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .legend-line {
+            width: 20px;
+            height: 3px;
+            border-radius: 2px;
+        }
+
+        /* Algorithm steps */
+        .algo-steps {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .algo-step {
+            padding: 6px 12px;
+            background: var(--bg-surface);
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-secondary);
+            border: 1px solid transparent;
+        }
+
+        .algo-step.active {
+            border-color: var(--accent-cyan);
+            color: var(--accent-cyan);
+            background: rgba(34, 184, 207, 0.1);
+        }
+
+        .algo-step.done {
+            color: var(--accent-green);
+            border-color: var(--accent-green);
+        }
+
+        /* Equation display */
+        .equation-box {
+            background: var(--bg-surface);
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            line-height: 1.8;
+            overflow-x: auto;
+        }
+
+        .eq-var { color: var(--accent-orange); }
+        .eq-num { color: var(--accent-green); }
+        .eq-op { color: var(--accent-purple); }
+        .eq-highlight { 
+            background: rgba(34, 184, 207, 0.2); 
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        /* Trajectory info */
+        .trajectory-info {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(26, 26, 46, 0.9);
+            padding: 10px 15px;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+        }
+
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>⚡ 潮流計算 収束の可視化</h1>
+            <p class="subtitle">解に向かって収束していく様子を直感的に理解する</p>
+        </header>
+
+        <div class="control-panel">
+            <div class="control-group">
+                <label>アルゴリズム:</label>
+                <select id="algoSelect">
+                    <option value="newton">Newton-Raphson法</option>
+                    <option value="gauss-seidel">Gauss-Seidel法</option>
+                    <option value="gradient">勾配降下法</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>問題:</label>
+                <select id="problemSelect">
+                    <option value="2bus">2ノード系統（最もシンプル）</option>
+                    <option value="3bus">3ノード系統</option>
+                    <option value="voltage">電圧安定性問題</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>速度:</label>
+                <input type="range" id="speedSlider" min="0.2" max="3" step="0.1" value="1">
+                <span id="speedValue">1.0x</span>
+            </div>
+            <div class="control-group">
+                <button class="btn btn-primary" id="runBtn">▶ 実行</button>
+                <button class="btn btn-secondary" id="stepBtn">⏭ 1ステップ</button>
+                <button class="btn btn-secondary" id="resetBtn">↺ リセット</button>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <div class="info-grid">
+                <div class="info-stat">
+                    <div class="info-value" id="iterValue">0</div>
+                    <div class="info-label">反復回数</div>
+                </div>
+                <div class="info-stat">
+                    <div class="info-value" id="errorValue">-</div>
+                    <div class="info-label">誤差 ||f(x)||</div>
+                </div>
+                <div class="info-stat">
+                    <div class="info-value" id="voltageValue">-</div>
+                    <div class="info-label">電圧 |V₂|</div>
+                </div>
+                <div class="info-stat">
+                    <div class="info-value" id="angleValue">-</div>
+                    <div class="info-label">位相角 δ₂</div>
+                </div>
+                <div class="info-stat">
+                    <div class="info-value" id="statusValue">待機中</div>
+                    <div class="info-label">状態</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-grid">
+            <!-- Complex Voltage Plane -->
+            <div class="viz-card">
+                <div class="viz-header">
+                    <div class="viz-title">
+                        <span class="icon">📐</span>
+                        複素電圧平面
+                    </div>
+                    <div class="legend">
+                        <div class="legend-item">
+                            <div class="legend-dot" style="background: var(--accent-cyan);"></div>
+                            <span>現在位置</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-dot" style="background: var(--accent-green);"></div>
+                            <span>解（目標）</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-line" style="background: var(--accent-orange);"></div>
+                            <span>軌跡</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="viz-body">
+                    <canvas id="complexPlane"></canvas>
+                    <div class="trajectory-info" id="trajectoryInfo">
+                        V = 1.00∠0°
+                    </div>
+                </div>
+            </div>
+
+            <!-- Error Surface -->
+            <div class="viz-card">
+                <div class="viz-header">
+                    <div class="viz-title">
+                        <span class="icon">🏔️</span>
+                        誤差曲面（谷底が解）
+                    </div>
+                    <div class="legend">
+                        <div class="legend-item">
+                            <div class="legend-dot" style="background: var(--accent-red);"></div>
+                            <span>現在位置</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-line" style="background: white;"></div>
+                            <span>探索経路</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="viz-body">
+                    <canvas id="errorSurface"></canvas>
+                </div>
+            </div>
+
+            <!-- Mismatch Vector Field -->
+            <div class="viz-card">
+                <div class="viz-header">
+                    <div class="viz-title">
+                        <span class="icon">🧭</span>
+                        ミスマッチベクトル場
+                    </div>
+                    <div class="legend">
+                        <div class="legend-item">
+                            <span>矢印 = 解への方向</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="viz-body">
+                    <canvas id="vectorField"></canvas>
+                </div>
+            </div>
+
+            <!-- Convergence History -->
+            <div class="viz-card">
+                <div class="viz-header">
+                    <div class="viz-title">
+                        <span class="icon">📈</span>
+                        収束履歴
+                    </div>
+                    <div class="algo-steps" id="algoSteps">
+                        <div class="algo-step" data-step="0">初期化</div>
+                        <div class="algo-step" data-step="1">誤差計算</div>
+                        <div class="algo-step" data-step="2">更新方向</div>
+                        <div class="algo-step" data-step="3">状態更新</div>
+                        <div class="algo-step" data-step="4">収束判定</div>
+                    </div>
+                </div>
+                <div class="viz-body">
+                    <canvas id="convergenceChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="explanation">
+            <h3>💡 何が起きているか？</h3>
+            <div class="explanation-content">
+                <div class="explanation-item">
+                    <h4>複素電圧平面</h4>
+                    <p>電圧を複素数 V = |V|e^(jδ) で表現。初期値（通常 1.0∠0°）から、真の解に向かって点が移動していきます。</p>
+                </div>
+                <div class="explanation-item">
+                    <h4>誤差曲面</h4>
+                    <p>||ΔP||² + ||ΔQ||² の値を高さで表現。解は谷底にあり、アルゴリズムは山を下っていきます。Newton法は急降下、Gauss-Seidelはジグザグに降ります。</p>
+                </div>
+                <div class="explanation-item">
+                    <h4>ベクトル場</h4>
+                    <p>各点での「力」の向き。ミスマッチ（ΔP, ΔQ）が作る場で、矢印は解に向かう方向を示します。解の周りでは矢印が収束します。</p>
+                </div>
+                <div class="explanation-item">
+                    <h4>収束速度の違い</h4>
+                    <p>Newton法: 2次収束（誤差が毎回2乗に減少）<br>
+                    Gauss-Seidel: 1次収束（線形に減少）<br>
+                    勾配降下: ステップ幅依存</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="explanation" style="margin-top: 20px;">
+            <h3>📝 現在の計算式</h3>
+            <div class="equation-box" id="equationBox">
+                実行ボタンを押すと計算過程が表示されます
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        // Problem Definitions
+        // ============================================================
+        const problems = {
+            '2bus': {
+                name: '2ノード系統',
+                description: '最もシンプルな例：発電機(Slack)と負荷(PQ)',
+                // Bus 1: Slack (V=1.0, δ=0)
+                // Bus 2: PQ (P=-0.5, Q=-0.2)
+                Ybus: [
+                    [{ re: 10, im: -30 }, { re: -10, im: 30 }],
+                    [{ re: -10, im: 30 }, { re: 10, im: -30 }]
+                ],
+                buses: [
+                    { type: 'Slack', V: 1.0, delta: 0, P: 0, Q: 0 },
+                    { type: 'PQ', V: 1.0, delta: 0, Pspec: -0.5, Qspec: -0.2 }
+                ],
+                solution: { V: 0.9647, delta: -0.0523 } // Pre-calculated solution
+            },
+            '3bus': {
+                name: '3ノード系統',
+                description: '発電機、負荷、中継ノード',
+                Ybus: [
+                    [{ re: 6, im: -18 }, { re: -3, im: 9 }, { re: -3, im: 9 }],
+                    [{ re: -3, im: 9 }, { re: 6.5, im: -19.5 }, { re: -3.5, im: 10.5 }],
+                    [{ re: -3, im: 9 }, { re: -3.5, im: 10.5 }, { re: 6.5, im: -19.5 }]
+                ],
+                buses: [
+                    { type: 'Slack', V: 1.05, delta: 0, P: 0, Q: 0 },
+                    { type: 'PQ', V: 1.0, delta: 0, Pspec: -0.4, Qspec: -0.15 },
+                    { type: 'PQ', V: 1.0, delta: 0, Pspec: -0.25, Qspec: -0.1 }
+                ],
+                solution: { V: 0.975, delta: -0.035 }
+            },
+            'voltage': {
+                name: '電圧安定性問題',
+                description: '重負荷での収束（解が2つある場合）',
+                Ybus: [
+                    [{ re: 5, im: -15 }, { re: -5, im: 15 }],
+                    [{ re: -5, im: 15 }, { re: 5, im: -15 }]
+                ],
+                buses: [
+                    { type: 'Slack', V: 1.0, delta: 0, P: 0, Q: 0 },
+                    { type: 'PQ', V: 1.0, delta: 0, Pspec: -1.2, Qspec: -0.5 }
+                ],
+                solution: { V: 0.82, delta: -0.15 }
+            }
+        };
+
+        // ============================================================
+        // State
+        // ============================================================
+        let state = {
+            problem: '2bus',
+            algorithm: 'newton',
+            speed: 1,
+            running: false,
+            iteration: 0,
+            maxIterations: 50,
+            tolerance: 1e-6,
+            
+            // Current state
+            V: 1.0,
+            delta: 0,
+            
+            // History
+            trajectory: [],
+            errorHistory: [],
+            
+            // Animation
+            animationId: null
+        };
+
+        // ============================================================
+        // Initialize
+        // ============================================================
+        document.addEventListener('DOMContentLoaded', () => {
+            initControls();
+            reset();
+            drawAll();
+        });
+
+        function initControls() {
+            document.getElementById('algoSelect').addEventListener('change', e => {
+                state.algorithm = e.target.value;
+                reset();
+            });
+
+            document.getElementById('problemSelect').addEventListener('change', e => {
+                state.problem = e.target.value;
+                reset();
+            });
+
+            document.getElementById('speedSlider').addEventListener('input', e => {
+                state.speed = parseFloat(e.target.value);
+                document.getElementById('speedValue').textContent = state.speed.toFixed(1) + 'x';
+            });
+
+            document.getElementById('runBtn').addEventListener('click', run);
+            document.getElementById('stepBtn').addEventListener('click', step);
+            document.getElementById('resetBtn').addEventListener('click', reset);
+        }
+
+        function reset() {
+            state.running = false;
+            state.iteration = 0;
+            state.V = 1.0;
+            state.delta = 0;
+            state.trajectory = [{ V: 1.0, delta: 0 }];
+            state.errorHistory = [];
+
+            if (state.animationId) {
+                cancelAnimationFrame(state.animationId);
+            }
+
+            updateDisplay();
+            drawAll();
+            updateEquation('初期状態: V = 1.0, δ = 0°');
+            
+            document.querySelectorAll('.algo-step').forEach(s => {
+                s.classList.remove('active', 'done');
+            });
+        }
+
+        // ============================================================
+        // Power Flow Calculations
+        // ============================================================
+        function calculateMismatch(V, delta) {
+            const prob = problems[state.problem];
+            const Ybus = prob.Ybus;
+            const bus = prob.buses[1]; // We're solving for bus 2 (index 1)
+            
+            // Calculate P and Q at bus 2
+            let Pcalc = 0, Qcalc = 0;
+            
+            for (let j = 0; j < Ybus.length; j++) {
+                const Vj = j === 0 ? prob.buses[0].V : V;
+                const dj = j === 0 ? 0 : delta;
+                const Gij = Ybus[1][j].re;
+                const Bij = Ybus[1][j].im;
+                const thetaij = delta - dj;
+                
+                Pcalc += V * Vj * (Gij * Math.cos(thetaij) + Bij * Math.sin(thetaij));
+                Qcalc += V * Vj * (Gij * Math.sin(thetaij) - Bij * Math.cos(thetaij));
+            }
+            
+            return {
+                deltaP: bus.Pspec - Pcalc,
+                deltaQ: bus.Qspec - Qcalc
+            };
+        }
+
+        function getError(V, delta) {
+            const m = calculateMismatch(V, delta);
+            return Math.sqrt(m.deltaP * m.deltaP + m.deltaQ * m.deltaQ);
+        }
+
+        function calculateJacobian(V, delta) {
+            const prob = problems[state.problem];
+            const Ybus = prob.Ybus;
+            const V1 = prob.buses[0].V;
+            
+            const G11 = Ybus[1][1].re;
+            const B11 = Ybus[1][1].im;
+            const G12 = Ybus[1][0].re;
+            const B12 = Ybus[1][0].im;
+            
+            // Jacobian elements (simplified for 2-bus)
+            // J11 = dP/d(delta)
+            const J11 = V * V1 * (G12 * Math.sin(delta) - B12 * Math.cos(delta));
+            // J12 = dP/dV
+            const J12 = 2 * V * G11 + V1 * (G12 * Math.cos(delta) + B12 * Math.sin(delta));
+            // J21 = dQ/d(delta)
+            const J21 = -V * V1 * (G12 * Math.cos(delta) + B12 * Math.sin(delta));
+            // J22 = dQ/dV
+            const J22 = -2 * V * B11 + V1 * (G12 * Math.sin(delta) - B12 * Math.cos(delta));
+            
+            return { J11, J12, J21, J22 };
+        }
+
+        // ============================================================
+        // Algorithm Implementations
+        // ============================================================
+        function doIteration() {
+            const algo = state.algorithm;
+            
+            switch (algo) {
+                case 'newton':
+                    return newtonStep();
+                case 'gauss-seidel':
+                    return gaussSeidelStep();
+                case 'gradient':
+                    return gradientStep();
+            }
+        }
+
+        function newtonStep() {
+            const m = calculateMismatch(state.V, state.delta);
+            const J = calculateJacobian(state.V, state.delta);
+            
+            // Solve J * dx = -f
+            const det = J.J11 * J.J22 - J.J12 * J.J21;
+            
+            if (Math.abs(det) < 1e-10) {
+                return { converged: false, error: Infinity };
+            }
+            
+            const dDelta = -(J.J22 * m.deltaP - J.J12 * m.deltaQ) / det;
+            const dV = -(-J.J21 * m.deltaP + J.J11 * m.deltaQ) / det;
+            
+            // Update with damping for visualization
+            const damping = 0.8;
+            state.delta += damping * dDelta;
+            state.V += damping * dV;
+            
+            // Clamp V to reasonable range
+            state.V = Math.max(0.7, Math.min(1.2, state.V));
+            
+            const error = getError(state.V, state.delta);
+            
+            updateEquation(`Newton-Raphson ステップ ${state.iteration + 1}:
+
+ミスマッチ: ΔP = ${m.deltaP.toFixed(4)}, ΔQ = ${m.deltaQ.toFixed(4)}
+
+ヤコビアン J = [${J.J11.toFixed(3)}  ${J.J12.toFixed(3)}]
+              [${J.J21.toFixed(3)}  ${J.J22.toFixed(3)}]
+
+更新量: Δδ = ${(dDelta * 180 / Math.PI).toFixed(4)}°, ΔV = ${dV.toFixed(4)}
+
+<span class="eq-highlight">V = ${state.V.toFixed(4)}, δ = ${(state.delta * 180 / Math.PI).toFixed(2)}°</span>`);
+
+            return { converged: error < state.tolerance, error };
+        }
+
+        function gaussSeidelStep() {
+            const prob = problems[state.problem];
+            const Ybus = prob.Ybus;
+            const V1 = prob.buses[0].V;
+            const bus = prob.buses[1];
+            
+            // Gauss-Seidel update
+            const Y11 = { re: Ybus[1][1].re, im: Ybus[1][1].im };
+            const Y12 = { re: Ybus[1][0].re, im: Ybus[1][0].im };
+            
+            // V2_new = (1/Y22) * ((P-jQ)/V2* - Y21*V1)
+            const Vconj = { re: state.V * Math.cos(-state.delta), im: state.V * Math.sin(-state.delta) };
+            const S = { re: bus.Pspec, im: -bus.Qspec };
+            
+            // S / V*
+            const Vmag2 = state.V * state.V;
+            const SoverV = {
+                re: (S.re * Vconj.re - S.im * Vconj.im) / Vmag2,
+                im: (S.re * Vconj.im + S.im * Vconj.re) / Vmag2
+            };
+            
+            // Y12 * V1
+            const YV1 = {
+                re: Y12.re * V1,
+                im: Y12.im * V1
+            };
+            
+            // RHS = S/V* - Y12*V1
+            const rhs = {
+                re: SoverV.re - YV1.re,
+                im: SoverV.im - YV1.im
+            };
+            
+            // Divide by Y11
+            const Y11mag2 = Y11.re * Y11.re + Y11.im * Y11.im;
+            const newV = {
+                re: (rhs.re * Y11.re + rhs.im * Y11.im) / Y11mag2,
+                im: (rhs.im * Y11.re - rhs.re * Y11.im) / Y11mag2
+            };
+            
+            const newMag = Math.sqrt(newV.re * newV.re + newV.im * newV.im);
+            const newAngle = Math.atan2(newV.im, newV.re);
+            
+            // Relaxation
+            const alpha = 1.2; // SOR factor
+            const oldV = state.V;
+            const oldDelta = state.delta;
+            
+            state.V = oldV + alpha * (newMag - oldV);
+            state.delta = oldDelta + alpha * (newAngle - oldDelta);
+            
+            state.V = Math.max(0.7, Math.min(1.2, state.V));
+            
+            const error = getError(state.V, state.delta);
+            
+            updateEquation(`Gauss-Seidel ステップ ${state.iteration + 1}:
+
+V₂ = (1/Y₂₂) × [(P-jQ)/V₂* - Y₂₁×V₁]
+
+計算:
+  (P-jQ)/V* = ${SoverV.re.toFixed(4)} + j(${SoverV.im.toFixed(4)})
+  Y₂₁×V₁ = ${YV1.re.toFixed(4)} + j(${YV1.im.toFixed(4)})
+
+新しい V = ${newMag.toFixed(4)}∠${(newAngle * 180 / Math.PI).toFixed(2)}°
+
+<span class="eq-highlight">緩和後: V = ${state.V.toFixed(4)}, δ = ${(state.delta * 180 / Math.PI).toFixed(2)}°</span>`);
+
+            return { converged: error < state.tolerance, error };
+        }
+
+        function gradientStep() {
+            const m = calculateMismatch(state.V, state.delta);
+            
+            // Gradient descent: x_new = x - α * gradient
+            // Gradient of ||f||² = 2 * J^T * f
+            const J = calculateJacobian(state.V, state.delta);
+            
+            const gradDelta = 2 * (J.J11 * m.deltaP + J.J21 * m.deltaQ);
+            const gradV = 2 * (J.J12 * m.deltaP + J.J22 * m.deltaQ);
+            
+            const stepSize = 0.05; // Fixed small step size
+            
+            state.delta += stepSize * gradDelta;
+            state.V += stepSize * gradV;
+            
+            state.V = Math.max(0.7, Math.min(1.2, state.V));
+            
+            const error = getError(state.V, state.delta);
+            
+            updateEquation(`勾配降下法 ステップ ${state.iteration + 1}:
+
+目的関数: f = ΔP² + ΔQ²
+
+勾配: ∇f = 2 × Jᵀ × [ΔP, ΔQ]
+     = [${gradDelta.toFixed(4)}, ${gradV.toFixed(4)}]
+
+ステップ幅 α = ${stepSize}
+
+<span class="eq-highlight">V = ${state.V.toFixed(4)}, δ = ${(state.delta * 180 / Math.PI).toFixed(2)}°</span>`);
+
+            return { converged: error < state.tolerance, error };
+        }
+
+        // ============================================================
+        // Running
+        // ============================================================
+        async function run() {
+            if (state.running) return;
+            
+            state.running = true;
+            document.getElementById('runBtn').disabled = true;
+            document.getElementById('statusValue').textContent = '実行中...';
+
+            while (state.running && state.iteration < state.maxIterations) {
+                await doStep();
+                
+                const error = state.errorHistory[state.errorHistory.length - 1];
+                if (error < state.tolerance) {
+                    document.getElementById('statusValue').textContent = '収束!';
+                    break;
+                }
+                
+                await delay(500 / state.speed);
+            }
+
+            if (state.iteration >= state.maxIterations) {
+                document.getElementById('statusValue').textContent = '未収束';
+            }
+
+            state.running = false;
+            document.getElementById('runBtn').disabled = false;
+        }
+
+        async function step() {
+            if (state.running) return;
+            await doStep();
+        }
+
+        async function doStep() {
+            // Animate step indicators
+            const steps = ['mismatch', 'jacobian', 'update', 'check'];
+            
+            for (let i = 0; i < 4; i++) {
+                document.querySelectorAll('.algo-step').forEach((s, idx) => {
+                    s.classList.remove('active');
+                    if (idx <= i) s.classList.add('done');
+                    if (idx === i + 1) s.classList.add('active');
+                });
+                await delay(100 / state.speed);
+            }
+
+            const result = doIteration();
+            state.iteration++;
+            
+            state.trajectory.push({ V: state.V, delta: state.delta });
+            state.errorHistory.push(result.error);
+            
+            updateDisplay();
+            drawAll();
+
+            document.querySelectorAll('.algo-step').forEach(s => {
+                s.classList.remove('active');
+                s.classList.add('done');
+            });
+        }
+
+        function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // ============================================================
+        // Display Updates
+        // ============================================================
+        function updateDisplay() {
+            document.getElementById('iterValue').textContent = state.iteration;
+            
+            if (state.errorHistory.length > 0) {
+                const error = state.errorHistory[state.errorHistory.length - 1];
+                document.getElementById('errorValue').textContent = error.toExponential(2);
+            }
+            
+            document.getElementById('voltageValue').textContent = state.V.toFixed(4);
+            document.getElementById('angleValue').textContent = (state.delta * 180 / Math.PI).toFixed(2) + '°';
+            
+            document.getElementById('trajectoryInfo').textContent = 
+                `V = ${state.V.toFixed(3)}∠${(state.delta * 180 / Math.PI).toFixed(1)}°`;
+        }
+
+        function updateEquation(text) {
+            document.getElementById('equationBox').innerHTML = text;
+        }
+
+        // ============================================================
+        // Drawing Functions
+        // ============================================================
+        function drawAll() {
+            drawComplexPlane();
+            drawErrorSurface();
+            drawVectorField();
+            drawConvergenceChart();
+        }
+
+        function drawComplexPlane() {
+            const canvas = document.getElementById('complexPlane');
+            const ctx = canvas.getContext('2d');
+            const rect = canvas.parentElement.getBoundingClientRect();
+            
+            canvas.width = rect.width - 30;
+            canvas.height = rect.height - 60;
+            
+            const w = canvas.width;
+            const h = canvas.height;
+            const cx = w / 2;
+            const cy = h / 2;
+            const scale = Math.min(w, h) * 0.35;
+
+            // Background
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(0, 0, w, h);
+
+            // Grid
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.lineWidth = 1;
+            
+            for (let r = 0.2; r <= 1.4; r += 0.2) {
+                ctx.beginPath();
+                ctx.arc(cx, cy, r * scale, 0, 2 * Math.PI);
+                ctx.stroke();
+                
+                // Label
+                ctx.fillStyle = '#868e96';
+                ctx.font = '10px JetBrains Mono';
+                ctx.fillText(r.toFixed(1), cx + r * scale + 5, cy);
+            }
+
+            // Axes
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.beginPath();
+            ctx.moveTo(0, cy);
+            ctx.lineTo(w, cy);
+            ctx.moveTo(cx, 0);
+            ctx.lineTo(cx, h);
+            ctx.stroke();
+
+            // Angle lines
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            for (let a = 0; a < 360; a += 30) {
+                const rad = a * Math.PI / 180;
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.lineTo(cx + 1.4 * scale * Math.cos(rad), cy - 1.4 * scale * Math.sin(rad));
+                ctx.stroke();
+            }
+
+            // Draw solution point
+            const prob = problems[state.problem];
+            const solX = cx + prob.solution.V * Math.cos(prob.solution.delta) * scale;
+            const solY = cy - prob.solution.V * Math.sin(prob.solution.delta) * scale;
+            
+            ctx.beginPath();
+            ctx.arc(solX, solY, 12, 0, 2 * Math.PI);
+            ctx.fillStyle = 'rgba(81, 207, 102, 0.3)';
+            ctx.fill();
+            ctx.strokeStyle = '#51cf66';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            ctx.fillStyle = '#51cf66';
+            ctx.font = 'bold 10px JetBrains Mono';
+            ctx.fillText('解', solX + 15, solY);
+
+            // Draw trajectory
+            if (state.trajectory.length > 1) {
+                ctx.beginPath();
+                ctx.strokeStyle = '#ffa94d';
+                ctx.lineWidth = 2;
+                
+                state.trajectory.forEach((point, i) => {
+                    const x = cx + point.V * Math.cos(point.delta) * scale;
+                    const y = cy - point.V * Math.sin(point.delta) * scale;
+                    
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+
+                // Draw points
+                state.trajectory.forEach((point, i) => {
+                    const x = cx + point.V * Math.cos(point.delta) * scale;
+                    const y = cy - point.V * Math.sin(point.delta) * scale;
+                    
+                    ctx.beginPath();
+                    ctx.arc(x, y, i === state.trajectory.length - 1 ? 8 : 4, 0, 2 * Math.PI);
+                    ctx.fillStyle = i === state.trajectory.length - 1 ? '#4dabf7' : '#ffa94d';
+                    ctx.fill();
+                    
+                    // Iteration number
+                    if (i > 0 && i < state.trajectory.length - 1) {
+                        ctx.fillStyle = '#868e96';
+                        ctx.font = '9px JetBrains Mono';
+                        ctx.fillText(i.toString(), x + 6, y - 6);
+                    }
+                });
+            } else {
+                // Initial point
+                const x = cx + state.V * Math.cos(state.delta) * scale;
+                const y = cy - state.V * Math.sin(state.delta) * scale;
+                
+                ctx.beginPath();
+                ctx.arc(x, y, 8, 0, 2 * Math.PI);
+                ctx.fillStyle = '#4dabf7';
+                ctx.fill();
+            }
+
+            // Labels
+            ctx.fillStyle = '#e9ecef';
+            ctx.font = '12px JetBrains Mono';
+            ctx.fillText('Re(V)', w - 40, cy + 20);
+            ctx.fillText('Im(V)', cx + 10, 20);
+        }
+
+        function drawErrorSurface() {
+            const canvas = document.getElementById('errorSurface');
+            const ctx = canvas.getContext('2d');
+            const rect = canvas.parentElement.getBoundingClientRect();
+            
+            canvas.width = rect.width - 30;
+            canvas.height = rect.height - 40;
+            
+            const w = canvas.width;
+            const h = canvas.height;
+
+            // Calculate error surface
+            const resolution = 50;
+            const Vmin = 0.7, Vmax = 1.2;
+            const dMin = -0.3, dMax = 0.1;
+            
+            const errors = [];
+            let maxError = 0;
+            
+            for (let i = 0; i < resolution; i++) {
+                errors[i] = [];
+                for (let j = 0; j < resolution; j++) {
+                    const V = Vmin + (Vmax - Vmin) * i / resolution;
+                    const delta = dMin + (dMax - dMin) * j / resolution;
+                    const error = getError(V, delta);
+                    errors[i][j] = error;
+                    maxError = Math.max(maxError, error);
+                }
+            }
+
+            // Draw as heatmap
+            const cellW = w / resolution;
+            const cellH = h / resolution;
+
+            for (let i = 0; i < resolution; i++) {
+                for (let j = 0; j < resolution; j++) {
+                    const error = errors[i][j];
+                    const normalized = Math.min(error / maxError, 1);
+                    
+                    // Color: blue (low) -> yellow -> red (high)
+                    const hue = (1 - normalized) * 240;
+                    ctx.fillStyle = `hsl(${hue}, 80%, ${30 + normalized * 30}%)`;
+                    ctx.fillRect(j * cellW, (resolution - 1 - i) * cellH, cellW + 1, cellH + 1);
+                }
+            }
+
+            // Draw trajectory on surface
+            if (state.trajectory.length > 1) {
+                ctx.beginPath();
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 2;
+                
+                state.trajectory.forEach((point, i) => {
+                    const x = (point.delta - dMin) / (dMax - dMin) * w;
+                    const y = (1 - (point.V - Vmin) / (Vmax - Vmin)) * h;
+                    
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+
+                // Current point
+                const current = state.trajectory[state.trajectory.length - 1];
+                const cx = (current.delta - dMin) / (dMax - dMin) * w;
+                const cy = (1 - (current.V - Vmin) / (Vmax - Vmin)) * h;
+                
+                ctx.beginPath();
+                ctx.arc(cx, cy, 8, 0, 2 * Math.PI);
+                ctx.fillStyle = '#ff6b6b';
+                ctx.fill();
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+
+            // Solution marker
+            const prob = problems[state.problem];
+            const solX = (prob.solution.delta - dMin) / (dMax - dMin) * w;
+            const solY = (1 - (prob.solution.V - Vmin) / (Vmax - Vmin)) * h;
+            
+            ctx.beginPath();
+            ctx.arc(solX, solY, 6, 0, 2 * Math.PI);
+            ctx.fillStyle = '#51cf66';
+            ctx.fill();
+
+            // Axis labels
+            ctx.fillStyle = '#e9ecef';
+            ctx.font = '11px JetBrains Mono';
+            ctx.fillText('δ →', w - 30, h - 5);
+            ctx.fillText('|V| ↑', 5, 15);
+        }
+
+        function drawVectorField() {
+            const canvas = document.getElementById('vectorField');
+            const ctx = canvas.getContext('2d');
+            const rect = canvas.parentElement.getBoundingClientRect();
+            
+            canvas.width = rect.width - 30;
+            canvas.height = rect.height - 40;
+            
+            const w = canvas.width;
+            const h = canvas.height;
+
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(0, 0, w, h);
+
+            const Vmin = 0.7, Vmax = 1.2;
+            const dMin = -0.3, dMax = 0.1;
+            const gridSize = 12;
+
+            const cellW = w / gridSize;
+            const cellH = h / gridSize;
+
+            // Draw vector field
+            for (let i = 1; i < gridSize; i++) {
+                for (let j = 1; j < gridSize; j++) {
+                    const V = Vmin + (Vmax - Vmin) * i / gridSize;
+                    const delta = dMin + (dMax - dMin) * j / gridSize;
+                    
+                    const m = calculateMismatch(V, delta);
+                    const mag = Math.sqrt(m.deltaP * m.deltaP + m.deltaQ * m.deltaQ);
+                    
+                    if (mag < 0.001) continue;
+                    
+                    // Normalize
+                    const scale = Math.min(mag * 50, 15);
+                    const dx = m.deltaP / mag * scale;
+                    const dy = -m.deltaQ / mag * scale;
+                    
+                    const cx = j * cellW;
+                    const cy = (gridSize - i) * cellH;
+                    
+                    // Arrow color based on magnitude
+                    const hue = (1 - Math.min(mag, 1)) * 120;
+                    ctx.strokeStyle = `hsl(${hue}, 70%, 50%)`;
+                    ctx.fillStyle = `hsl(${hue}, 70%, 50%)`;
+                    
+                    drawArrow(ctx, cx, cy, cx + dx * 2, cy + dy * 2);
+                }
+            }
+
+            // Draw trajectory
+            if (state.trajectory.length > 1) {
+                ctx.beginPath();
+                ctx.strokeStyle = '#4dabf7';
+                ctx.lineWidth = 3;
+                
+                state.trajectory.forEach((point, i) => {
+                    const x = (point.delta - dMin) / (dMax - dMin) * w;
+                    const y = (1 - (point.V - Vmin) / (Vmax - Vmin)) * h;
+                    
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+
+                // Current point
+                const current = state.trajectory[state.trajectory.length - 1];
+                const cx = (current.delta - dMin) / (dMax - dMin) * w;
+                const cy = (1 - (current.V - Vmin) / (Vmax - Vmin)) * h;
+                
+                ctx.beginPath();
+                ctx.arc(cx, cy, 10, 0, 2 * Math.PI);
+                ctx.fillStyle = '#4dabf7';
+                ctx.fill();
+            }
+
+            // Solution point
+            const prob = problems[state.problem];
+            const solX = (prob.solution.delta - dMin) / (dMax - dMin) * w;
+            const solY = (1 - (prob.solution.V - Vmin) / (Vmax - Vmin)) * h;
+            
+            ctx.beginPath();
+            ctx.arc(solX, solY, 8, 0, 2 * Math.PI);
+            ctx.fillStyle = '#51cf66';
+            ctx.fill();
+            
+            ctx.fillStyle = '#51cf66';
+            ctx.font = 'bold 11px JetBrains Mono';
+            ctx.fillText('解', solX + 12, solY + 4);
+
+            // Labels
+            ctx.fillStyle = '#e9ecef';
+            ctx.font = '11px JetBrains Mono';
+            ctx.fillText('δ →', w - 30, h - 5);
+            ctx.fillText('|V| ↑', 5, 15);
+        }
+
+        function drawArrow(ctx, x1, y1, x2, y2) {
+            const headLen = 6;
+            const angle = Math.atan2(y2 - y1, x2 - x1);
+            
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.moveTo(x2, y2);
+            ctx.lineTo(x2 - headLen * Math.cos(angle - Math.PI / 6), y2 - headLen * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(x2 - headLen * Math.cos(angle + Math.PI / 6), y2 - headLen * Math.sin(angle + Math.PI / 6));
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        function drawConvergenceChart() {
+            const canvas = document.getElementById('convergenceChart');
+            const ctx = canvas.getContext('2d');
+            const rect = canvas.parentElement.getBoundingClientRect();
+            
+            canvas.width = rect.width - 30;
+            canvas.height = rect.height - 60;
+            
+            const w = canvas.width;
+            const h = canvas.height;
+            const padding = { top: 20, right: 20, bottom: 40, left: 60 };
+
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(0, 0, w, h);
+
+            if (state.errorHistory.length === 0) {
+                ctx.fillStyle = '#868e96';
+                ctx.font = '12px JetBrains Mono';
+                ctx.textAlign = 'center';
+                ctx.fillText('実行すると収束曲線が表示されます', w / 2, h / 2);
+                return;
+            }
+
+            const data = state.errorHistory;
+            const logData = data.map(d => Math.log10(Math.max(d, 1e-12)));
+            const minLog = Math.min(...logData, Math.log10(state.tolerance)) - 1;
+            const maxLog = Math.max(...logData) + 0.5;
+            
+            const plotW = w - padding.left - padding.right;
+            const plotH = h - padding.top - padding.bottom;
+
+            // Grid
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.lineWidth = 1;
+            
+            for (let i = 0; i <= 5; i++) {
+                const y = padding.top + i * plotH / 5;
+                ctx.beginPath();
+                ctx.moveTo(padding.left, y);
+                ctx.lineTo(w - padding.right, y);
+                ctx.stroke();
+            }
+
+            // Tolerance line
+            const tolY = padding.top + (maxLog - Math.log10(state.tolerance)) / (maxLog - minLog) * plotH;
+            ctx.strokeStyle = '#ff6b6b';
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(padding.left, tolY);
+            ctx.lineTo(w - padding.right, tolY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.fillStyle = '#ff6b6b';
+            ctx.font = '10px JetBrains Mono';
+            ctx.fillText('ε = 10⁻⁶', w - padding.right - 50, tolY - 5);
+
+            // Convergence curve
+            const xScale = plotW / Math.max(data.length, 10);
+            
+            ctx.beginPath();
+            ctx.strokeStyle = '#4dabf7';
+            ctx.lineWidth = 3;
+            
+            data.forEach((val, i) => {
+                const x = padding.left + (i + 1) * xScale;
+                const y = padding.top + (maxLog - Math.log10(Math.max(val, 1e-12))) / (maxLog - minLog) * plotH;
+                
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+
+            // Points
+            ctx.fillStyle = '#4dabf7';
+            data.forEach((val, i) => {
+                const x = padding.left + (i + 1) * xScale;
+                const y = padding.top + (maxLog - Math.log10(Math.max(val, 1e-12))) / (maxLog - minLog) * plotH;
+                
+                ctx.beginPath();
+                ctx.arc(x, y, 5, 0, 2 * Math.PI);
+                ctx.fill();
+            });
+
+            // Labels
+            ctx.fillStyle = '#e9ecef';
+            ctx.font = '11px JetBrains Mono';
+            ctx.textAlign = 'center';
+            ctx.fillText('反復回数', w / 2, h - 5);
+
+            ctx.save();
+            ctx.translate(15, h / 2);
+            ctx.rotate(-Math.PI / 2);
+            ctx.fillText('log₁₀(誤差)', 0, 0);
+            ctx.restore();
+
+            // Y-axis values
+            ctx.textAlign = 'right';
+            for (let i = 0; i <= 4; i++) {
+                const logVal = maxLog - i * (maxLog - minLog) / 4;
+                const y = padding.top + i * plotH / 4;
+                ctx.fillText(logVal.toFixed(1), padding.left - 5, y + 4);
+            }
+        }
+
+        // Resize
+        window.addEventListener('resize', drawAll);
+    </script>
+</body>
+</html>
