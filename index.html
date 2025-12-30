@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Power Flow Visualization Project</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-surface: #1a1a25;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-orange: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-purple: #8b5cf6;
+            --accent-cyan: #06b6d4;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border: #2d2d3d;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Noto Sans JP', 'JetBrains Mono', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+        
+        .logo {
+            display: inline-flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .logo-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+        }
+        
+        .title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 15px;
+        }
+        
+        .subtitle {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .visualizers {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+            margin-bottom: 50px;
+        }
+        
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 25px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            border-color: var(--accent-blue);
+        }
+        
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+        
+        .card-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: white;
+        }
+        
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .card-description {
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+            font-size: 0.95rem;
+        }
+        
+        .card-features {
+            list-style: none;
+            margin-bottom: 20px;
+        }
+        
+        .card-features li {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            padding: 3px 0;
+        }
+        
+        .card-features li:before {
+            content: "✓";
+            color: var(--accent-green);
+            font-weight: bold;
+            margin-right: 8px;
+        }
+        
+        .card-footer {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .btn-primary {
+            background: var(--accent-blue);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: var(--bg-surface);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+        
+        .btn:hover {
+            transform: translateY(-1px);
+            opacity: 0.9;
+        }
+        
+        .documentation {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 30px;
+        }
+        
+        .doc-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: var(--accent-orange);
+        }
+        
+        .doc-links {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+        
+        .doc-link {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 15px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.3s ease;
+        }
+        
+        .doc-link:hover {
+            border-color: var(--accent-cyan);
+            background: var(--bg-card);
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            padding-top: 30px;
+            border-top: 1px solid var(--border);
+            color: var(--text-muted);
+        }
+        
+        .github-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            margin-top: 15px;
+        }
+        
+        .github-link:hover {
+            color: var(--accent-blue);
+        }
+        
+        @media (max-width: 768px) {
+            .visualizers {
+                grid-template-columns: 1fr;
+            }
+            .title {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">⚡</div>
+                <div>
+                    <h1 class="title">Power Flow Visualization</h1>
+                    <p class="subtitle">電力潮流計算アルゴリズムの可視化・教育プラットフォーム</p>
+                </div>
+            </div>
+        </header>
+
+        <section class="visualizers">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon" style="background: var(--accent-blue);">📊</div>
+                    <h2 class="card-title">包括的アルゴリズム比較</h2>
+                </div>
+                <p class="card-description">20種類以上の潮流計算アルゴリズムを実装し、性能比較とベンチマーク分析を行う包括的プラットフォーム</p>
+                <ul class="card-features">
+                    <li>Newton-Raphson, Levenberg-Marquardt, Holomorphic Embedding等</li>
+                    <li>リアルタイム性能比較・統計分析</li>
+                    <li>IEEE標準系統サポート</li>
+                </ul>
+                <div class="card-footer">
+                    <a href="power_flow_v5.html" class="btn btn-primary">起動 →</a>
+                    <a href="docs/power_flow_v5.md" class="btn btn-secondary">📖 詳細</a>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon" style="background: var(--accent-green);">🎯</div>
+                    <h2 class="card-title">多手法可視化</h2>
+                </div>
+                <p class="card-description">主要な潮流計算アルゴリズムの動作を直感的に理解できる教育的可視化ツール</p>
+                <ul class="card-features">
+                    <li>Newton-Raphson, 高速分離解法, Gauss-Seidel</li>
+                    <li>収束曲線・性能分析チャート</li>
+                    <li>インタラクティブパラメータ調整</li>
+                </ul>
+                <div class="card-footer">
+                    <a href="power_flow_visualizer.html" class="btn btn-primary">起動 →</a>
+                    <a href="docs/power_flow_visualizer.md" class="btn btn-secondary">📖 詳細</a>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon" style="background: var(--accent-purple);">🔍</div>
+                    <h2 class="card-title">計算過程ステップ表示</h2>
+                </div>
+                <p class="card-description">潮流計算アルゴリズムの各計算ステップを段階的に可視化する教育特化型ツール</p>
+                <ul class="card-features">
+                    <li>6段階の計算過程分解表示</li>
+                    <li>Jacobian行列・ミスマッチ計算の詳細</li>
+                    <li>ステップバイステップ学習</li>
+                </ul>
+                <div class="card-footer">
+                    <a href="power_flow_process_visualizer.html" class="btn btn-primary">起動 →</a>
+                    <a href="docs/power_flow_process_visualizer.md" class="btn btn-secondary">📖 詳細</a>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon" style="background: var(--accent-cyan);">⚙️</div>
+                    <h2 class="card-title">MATPOWER準拠実装</h2>
+                </div>
+                <p class="card-description">電力系統解析の標準ソフトウェアであるMATPOWERとの完全互換性を持つ潮流計算実装</p>
+                <ul class="card-features">
+                    <li>mpc.bus, mpc.gen, mpc.branch完全対応</li>
+                    <li>IEEE標準系統データ準拠</li>
+                    <li>プロフェッショナル向けツール</li>
+                </ul>
+                <div class="card-footer">
+                    <a href="power_flow_matpower_v2.html" class="btn btn-primary">起動 →</a>
+                    <a href="docs/power_flow_matpower_v2.md" class="btn btn-secondary">📖 詳細</a>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon" style="background: var(--accent-orange);">📈</div>
+                    <h2 class="card-title">手法比較分析</h2>
+                </div>
+                <p class="card-description">主要な潮流計算アルゴリズムの性能特性を定量的に比較分析するツール</p>
+                <ul class="card-features">
+                    <li>収束性・計算速度・精度の多角的評価</li>
+                    <li>統計分析・ベンチマーク機能</li>
+                    <li>系統条件別性能特性</li>
+                </ul>
+                <div class="card-footer">
+                    <a href="power_flow_compare.html" class="btn btn-primary">起動 →</a>
+                    <a href="docs/power_flow_compare.md" class="btn btn-secondary">📖 詳細</a>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon" style="background: var(--accent-red);">🧠</div>
+                    <h2 class="card-title">収束過程直感的理解</h2>
+                </div>
+                <p class="card-description">潮流計算の収束過程を視覚的・直感的に理解できる教育特化型可視化ツール</p>
+                <ul class="card-features">
+                    <li>複素電圧平面での収束軌跡表示</li>
+                    <li>誤差面3D可視化・ベクトル場表示</li>
+                    <li>段階的アニメーション学習</li>
+                </ul>
+                <div class="card-footer">
+                    <a href="power_flow_intuitive.html" class="btn btn-primary">起動 →</a>
+                    <a href="docs/power_flow_intuitive.md" class="btn btn-secondary">📖 詳細</a>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon" style="background: var(--accent-green);">📏</div>
+                    <h2 class="card-title">DC潮流精度検証</h2>
+                </div>
+                <p class="card-description">DC潮流計算の精度特性を定量的に分析し、AC潮流解との比較検証を行う分析ツール</p>
+                <ul class="card-features">
+                    <li>DC近似妥当性評価・適用限界把握</li>
+                    <li>無効電力影響の定量化</li>
+                    <li>系統条件別精度特性分析</li>
+                </ul>
+                <div class="card-footer">
+                    <a href="dc_accuracy_analysis.html" class="btn btn-primary">起動 →</a>
+                    <a href="docs/dc_accuracy_analysis.md" class="btn btn-secondary">📖 詳細</a>
+                </div>
+            </div>
+        </section>
+
+        <section class="documentation">
+            <h2 class="doc-title">📚 技術文書</h2>
+            <div class="doc-links">
+                <a href="README.md" class="doc-link">
+                    <span>📋</span>
+                    <div>
+                        <strong>README</strong>
+                        <br><small>プロジェクト概要</small>
+                    </div>
+                </a>
+                <a href="docs/power_flow_methods.md" class="doc-link">
+                    <span>🔬</span>
+                    <div>
+                        <strong>技術ノート</strong>
+                        <br><small>潮流計算手法詳解</small>
+                    </div>
+                </a>
+                <a href="docs/" class="doc-link">
+                    <span>📖</span>
+                    <div>
+                        <strong>詳細文書</strong>
+                        <br><small>各ツール解説</small>
+                    </div>
+                </a>
+            </div>
+        </section>
+
+        <footer class="footer">
+            <p>電力潮流計算アルゴリズムの可視化・教育プラットフォーム</p>
+            <p><small>教育目的で開発されました。MATPOWERプロジェクト、IEEE標準系統データに深く感謝いたします。</small></p>
+            <a href="https://github.com/lutelute/power_flow_viz" class="github-link">
+                <span>⭐</span>
+                GitHub で見る
+            </a>
+        </footer>
+    </div>
+
+    <script>
+        // 簡単なアニメーション効果
+        document.addEventListener('DOMContentLoaded', function() {
+            const cards = document.querySelectorAll('.card');
+            
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.style.opacity = '1';
+                        entry.target.style.transform = 'translateY(0)';
+                    }
+                });
+            }, {
+                threshold: 0.1
+            });
+
+            cards.forEach(card => {
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(20px)';
+                card.style.transition = 'all 0.6s ease';
+                observer.observe(card);
+            });
+        });
+    </script>
+</body>
+</html>
