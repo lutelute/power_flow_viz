@@ -23,34 +23,73 @@
 
 ### 1.1 電力系統の数学モデル
 
-#### 基本方程式
-電力系統の定常状態は、各母線における電力保存則により記述される：
+#### 基本方程式の導出
 
-```
-P_i = Re[V_i^* ∑_{j=1}^n Y_{ij} V_j] = P_{Gi} - P_{Di}
-Q_i = Im[V_i^* ∑_{j=1}^n Y_{ij} V_j] = Q_{Gi} - Q_{Di}
-```
+電力系統の定常状態解析において、各母線 $i$ における電力保存則（Kirchhoffの電流則）から出発する。
 
-ここで：
-- `V_i = |V_i|e^{jθ_i}`: 母線iの複素電圧
-- `Y_{ij}`: アドミタンス行列要素
-- `P_{Gi}, Q_{Gi}`: 発電電力
-- `P_{Di}, Q_{Di}`: 負荷電力
+**Step 1: 複素電力の定義**
 
-#### アドミタンス行列
-```
-Y_{ij} = G_{ij} + jB_{ij} = |Y_{ij}|e^{j(θ_{ij}+π/2)}
-```
+母線 $i$ への複素電力注入は：
+$$S_i = P_i + jQ_i = V_i \cdot I_i^*$$
 
-自己アドミタンス：
-```
-Y_{ii} = ∑_{k≠i} Y_{ik} + y_{shi}
-```
+ここで、$V_i$ は母線 $i$ の複素電圧、$I_i^*$ は注入電流の共役である。
 
-相互アドミタンス：
-```
-Y_{ij} = -y_{ij}  (i ≠ j)
-```
+**Step 2: アドミタンス行列による電流表現**
+
+電流は電圧とアドミタンス行列の関係により：
+$$I_i = \sum_{j=1}^n Y_{ij} V_j$$
+
+したがって、複素電力は：
+$$S_i = V_i \left(\sum_{j=1}^n Y_{ij} V_j\right)^* = V_i^* \sum_{j=1}^n Y_{ij}^* V_j^*$$
+
+**Step 3: 実部・虚部分離**
+
+$V_i = |V_i|e^{j\theta_i}$、$Y_{ij} = G_{ij} + jB_{ij}$ として：
+
+$$P_i = \text{Re}[S_i] = \text{Re}\left[V_i^* \sum_{j=1}^n Y_{ij} V_j\right] = P_{Gi} - P_{Di} \tag{1}$$
+
+$$Q_i = \text{Im}[S_i] = \text{Im}\left[V_i^* \sum_{j=1}^n Y_{ij} V_j\right] = Q_{Gi} - Q_{Di} \tag{2}$$
+
+#### 極座標形式への展開
+
+複素電圧を極座標で表現：$V_i = |V_i|e^{j\theta_i}$
+
+**導出過程：**
+
+$$\begin{align}
+P_i &= \sum_{j=1}^n |V_i||V_j||Y_{ij}|\cos(\theta_{ij} - \theta_i + \theta_j) \tag{3}\\
+&= \sum_{j=1}^n |V_i||V_j|[G_{ij}\cos(\theta_i - \theta_j) + B_{ij}\sin(\theta_i - \theta_j)] \tag{4}
+\end{align}$$
+
+$$\begin{align}
+Q_i &= \sum_{j=1}^n |V_i||V_j||Y_{ij}|\sin(\theta_{ij} - \theta_i + \theta_j) \tag{5}\\
+&= \sum_{j=1}^n |V_i||V_j|[G_{ij}\sin(\theta_i - \theta_j) - B_{ij}\cos(\theta_i - \theta_j)] \tag{6}
+\end{align}$$
+
+ここで、$\theta_{ij} = \arg(Y_{ij})$、$|Y_{ij}| = \sqrt{G_{ij}^2 + B_{ij}^2}$ である。
+
+#### アドミタンス行列の構成
+
+**送電線要素：**
+
+送電線を $R + jX$ で表現すると、送電線アドミタンスは：
+$$y_{ij} = \frac{1}{R_{ij} + jX_{ij}} = \frac{R_{ij}}{R_{ij}^2 + X_{ij}^2} - j\frac{X_{ij}}{R_{ij}^2 + X_{ij}^2} = g_{ij} + jb_{ij} \tag{7}$$
+
+**母線アドミタンス行列：**
+
+$$Y_{ii} = \sum_{k \in \mathcal{N}_i} y_{ik} + y_{sh,i} \quad \text{（自己アドミタンス）} \tag{8}$$
+
+$$Y_{ij} = -y_{ij} \quad \text{（相互アドミタンス, } i \neq j\text{）} \tag{9}$$
+
+ここで、$\mathcal{N}_i$ は母線 $i$ に接続する母線の集合、$y_{sh,i}$ は母線 $i$ の分路アドミタンスである。
+
+#### 線形化による感度解析
+
+微小変動 $\Delta\mathbf{x}$ に対する電力変化は：
+
+$$\begin{bmatrix} \Delta\mathbf{P} \\ \Delta\mathbf{Q} \end{bmatrix} = \begin{bmatrix} \frac{\partial \mathbf{P}}{\partial \boldsymbol{\theta}} & \frac{\partial \mathbf{P}}{\partial |\mathbf{V}|} \\ \frac{\partial \mathbf{Q}}{\partial \boldsymbol{\theta}} & \frac{\partial \mathbf{Q}}{\partial |\mathbf{V}|} \end{bmatrix} \begin{bmatrix} \Delta\boldsymbol{\theta} \\ \Delta|\mathbf{V}| \end{bmatrix} = \mathbf{J} \Delta\mathbf{x} \tag{10}$$
+
+これが潮流計算の線形化方程式の基礎となる。
 
 ### 1.2 母線の分類
 
@@ -88,38 +127,94 @@ Q_i = ∑_{j=1}^n |V_i||V_j|[G_{ij}sin(θ_i - θ_j) - B_{ij}cos(θ_i - θ_j)]
 
 ### 2.1 理論的基礎
 
-Newton-Raphson法は多変数非線形方程式 `f(x) = 0` を二次収束で解く反復法：
+Newton-Raphson法は多変数非線形方程式系 $\mathbf{f}(\mathbf{x}) = \mathbf{0}$ の数値解法である。
 
-```
-x^(k+1) = x^(k) - [J(x^(k))]^(-1) f(x^(k))
-```
+#### 多変数Newton法の導出
 
-潮流計算では：
-- `x = [θ_2, ..., θ_n, |V|_{PQ1}, ..., |V|_{PQm}]^T`
-- `f(x) = [ΔP_2, ..., ΔP_n, ΔQ_{PQ1}, ..., ΔQ_{PQm}]^T`
+**Step 1: Taylor展開**
 
-### 2.2 Jacobian行列
+点 $\mathbf{x}^{(k)}$ における1次Taylor展開：
+$$\mathbf{f}(\mathbf{x}^{(k)} + \Delta\mathbf{x}^{(k)}) \approx \mathbf{f}(\mathbf{x}^{(k)}) + \mathbf{J}(\mathbf{x}^{(k)}) \Delta\mathbf{x}^{(k)} \tag{11}$$
 
-```
-J = [∂P/∂θ   ∂P/∂|V|]
-    [∂Q/∂θ   ∂Q/∂|V|]
-```
+ここで、$\mathbf{J}(\mathbf{x})$ はJacobian行列：
+$$J_{ij}(\mathbf{x}) = \frac{\partial f_i(\mathbf{x})}{\partial x_j} \tag{12}$$
 
-#### 対角要素
-```
-∂P_i/∂θ_i = -Q_i - B_{ii}|V_i|^2
-∂P_i/∂|V_i| = (P_i + G_{ii}|V_i|^2)/|V_i|
-∂Q_i/∂θ_i = P_i - G_{ii}|V_i|^2  
-∂Q_i/∂|V_i| = (Q_i - B_{ii}|V_i|^2)/|V_i|
-```
+**Step 2: Newton方向の決定**
 
-#### 非対角要素  
-```
-∂P_i/∂θ_j = |V_i||V_j|[G_{ij}sin(θ_i - θ_j) - B_{ij}cos(θ_i - θ_j)]
-∂P_i/∂|V_j| = |V_i|[G_{ij}cos(θ_i - θ_j) + B_{ij}sin(θ_i - θ_j)]
-∂Q_i/∂θ_j = -|V_i||V_j|[G_{ij}cos(θ_i - θ_j) + B_{ij}sin(θ_i - θ_j)]
-∂Q_i/∂|V_j| = |V_i|[G_{ij}sin(θ_i - θ_j) - B_{ij}cos(θ_i - θ_j)]
-```
+$\mathbf{f}(\mathbf{x}^{(k)} + \Delta\mathbf{x}^{(k)}) = \mathbf{0}$ を要求すると：
+$$\mathbf{f}(\mathbf{x}^{(k)}) + \mathbf{J}(\mathbf{x}^{(k)}) \Delta\mathbf{x}^{(k)} = \mathbf{0} \tag{13}$$
+
+したがって、Newton方向は：
+$$\Delta\mathbf{x}^{(k)} = -[\mathbf{J}(\mathbf{x}^{(k)})]^{-1} \mathbf{f}(\mathbf{x}^{(k)}) \tag{14}$$
+
+**Step 3: 反復更新**
+
+$$\mathbf{x}^{(k+1)} = \mathbf{x}^{(k)} + \Delta\mathbf{x}^{(k)} = \mathbf{x}^{(k)} - [\mathbf{J}(\mathbf{x}^{(k)})]^{-1} \mathbf{f}(\mathbf{x}^{(k)}) \tag{15}$$
+
+#### 潮流計算への適用
+
+**変数ベクトル：**
+$$\mathbf{x} = \begin{bmatrix} \boldsymbol{\theta}_{PV,PQ} \\ |\mathbf{V}|_{PQ} \end{bmatrix} = \begin{bmatrix} \theta_2, \ldots, \theta_n \\ |V|_1, \ldots, |V|_m \end{bmatrix}^T \tag{16}$$
+
+ここで、$n$ は総母線数、$m$ はPQ母線数である。
+
+**ミスマッチベクトル：**
+$$\mathbf{f}(\mathbf{x}) = \begin{bmatrix} \Delta\mathbf{P} \\ \Delta\mathbf{Q} \end{bmatrix} = \begin{bmatrix} \mathbf{P}_{spec} - \mathbf{P}_{calc}(\mathbf{x}) \\ \mathbf{Q}_{spec} - \mathbf{Q}_{calc}(\mathbf{x}) \end{bmatrix} \tag{17}$$
+
+**Newton更新式：**
+$$\begin{bmatrix} \Delta\boldsymbol{\theta}^{(k)} \\ \Delta|\mathbf{V}|^{(k)} \end{bmatrix} = -\begin{bmatrix} \mathbf{J}_{P\theta} & \mathbf{J}_{P|V|} \\ \mathbf{J}_{Q\theta} & \mathbf{J}_{Q|V|} \end{bmatrix}^{-1} \begin{bmatrix} \Delta\mathbf{P}^{(k)} \\ \Delta\mathbf{Q}^{(k)} \end{bmatrix} \tag{18}$$
+
+### 2.2 Jacobian行列の厳密導出
+
+Jacobian行列は4つのブロックから構成される：
+
+$$\mathbf{J} = \begin{bmatrix} \frac{\partial \mathbf{P}}{\partial \boldsymbol{\theta}} & \frac{\partial \mathbf{P}}{\partial |\mathbf{V}|} \\ \frac{\partial \mathbf{Q}}{\partial \boldsymbol{\theta}} & \frac{\partial \mathbf{Q}}{\partial |\mathbf{V}|} \end{bmatrix} = \begin{bmatrix} \mathbf{J}_{P\theta} & \mathbf{J}_{P|V|} \\ \mathbf{J}_{Q\theta} & \mathbf{J}_{Q|V|} \end{bmatrix} \tag{19}$$
+
+#### $\mathbf{J}_{P\theta}$ ブロックの導出
+
+式(4)より：$P_i = \sum_{j=1}^n |V_i||V_j|[G_{ij}\cos(\theta_i - \theta_j) + B_{ij}\sin(\theta_i - \theta_j)]$
+
+**対角要素（$i = j$）：**
+$$\frac{\partial P_i}{\partial \theta_i} = \sum_{j=1, j \neq i}^n |V_i||V_j|[-G_{ij}\sin(\theta_i - \theta_j) + B_{ij}\cos(\theta_i - \theta_j)] \tag{20}$$
+
+式(6)と比較すると：
+$$\frac{\partial P_i}{\partial \theta_i} = -Q_i - |V_i|^2 B_{ii} \tag{21}$$
+
+**非対角要素（$i \neq j$）：**
+$$\frac{\partial P_i}{\partial \theta_j} = |V_i||V_j|[G_{ij}\sin(\theta_i - \theta_j) - B_{ij}\cos(\theta_i - \theta_j)] \tag{22}$$
+
+#### $\mathbf{J}_{P|V|}$ ブロックの導出
+
+**対角要素：**
+$$\frac{\partial P_i}{\partial |V_i|} = \frac{1}{|V_i|} \sum_{j=1}^n |V_j|[G_{ij}\cos(\theta_i - \theta_j) + B_{ij}\sin(\theta_i - \theta_j)] \tag{23}$$
+
+式(4)を用いると：
+$$\frac{\partial P_i}{\partial |V_i|} = \frac{P_i + |V_i|^2 G_{ii}}{|V_i|} \tag{24}$$
+
+**非対角要素：**
+$$\frac{\partial P_i}{\partial |V_j|} = |V_i|[G_{ij}\cos(\theta_i - \theta_j) + B_{ij}\sin(\theta_i - \theta_j)] \tag{25}$$
+
+#### $\mathbf{J}_{Q\theta}$ および $\mathbf{J}_{Q|V|}$ ブロック
+
+同様の手順で無効電力についても導出：
+
+**$\mathbf{J}_{Q\theta}$ ブロック：**
+$$\frac{\partial Q_i}{\partial \theta_i} = P_i - |V_i|^2 G_{ii} \tag{26}$$
+
+$$\frac{\partial Q_i}{\partial \theta_j} = -|V_i||V_j|[G_{ij}\cos(\theta_i - \theta_j) + B_{ij}\sin(\theta_i - \theta_j)] \tag{27}$$
+
+**$\mathbf{J}_{Q|V|}$ ブロック：**
+$$\frac{\partial Q_i}{\partial |V_i|} = \frac{Q_i - |V_i|^2 B_{ii}}{|V_i|} \tag{28}$$
+
+$$\frac{\partial Q_i}{\partial |V_j|} = |V_i|[G_{ij}\sin(\theta_i - \theta_j) - B_{ij}\cos(\theta_i - \theta_j)] \tag{29}$$
+
+#### 計算量解析
+
+Jacobian行列の構築：$O(n^2)$  
+LU分解：$O(n^3)$  
+前進・後進代入：$O(n^2)$
+
+総計算量：$O(n^3)$ per iteration
 
 ### 2.3 アルゴリズム
 
@@ -209,29 +304,93 @@ function buildJacobian(V, Ybus) {
 
 ## 3. 高速分離解法（Fast Decoupled Method）
 
-### 3.1 理論的基礎
+### 3.1 理論的基礎と近似仮定
 
-実用系統の特性を利用した近似：
+高速分離解法は、実用送電系統の物理的特性に基づく近似により、Newton-Raphson法を簡素化した手法である。
 
-#### 仮定
-1. **r << x**: 送電線抵抗 << リアクタンス
-2. **θ_ij << 1**: 母線間位相角差は小さい
-3. **|V_i| ≈ 1.0**: 電圧大きさは1.0puに近い
-4. **P-θ強相関**: 有効電力は主に位相角で決まる
-5. **Q-|V|強相関**: 無効電力は主に電圧大きさで決まる
+#### 基本仮定
 
-### 3.2 簡化されたJacobian
+送電系統の以下の物理的特性を仮定：
 
-```
-[ΔP]   [∂P/∂θ     0    ] [Δθ ]
-[ΔQ] = [  0    ∂Q/∂|V|] [Δ|V|]
-```
+**仮定 A1**: $r_{ij} \ll x_{ij}$ （送電線抵抗 $\ll$ リアクタンス）  
+**仮定 A2**: $|\theta_i - \theta_j| \ll 1$ （母線間位相角差は小さい）  
+**仮定 A3**: $|V_i| \approx 1.0$ （電圧大きさは基準値付近）  
+**仮定 A4**: $Q_i/|V_i|^2 \ll B_{ii}$ （無効電力項 $\ll$ 自己サセプタンス）
 
-近似により：
-```
-∂P/∂θ ≈ -B'
-∂Q/∂|V| ≈ -B''
-```
+### 3.2 Jacobian行列の分離近似
+
+#### Step 1: 近似の導出
+
+仮定A1, A2により、式(22), (25)は次のように近似できる：
+
+$$G_{ij}\sin(\theta_i - \theta_j) \approx G_{ij}(\theta_i - \theta_j) \approx 0 \quad (\because G_{ij} \ll B_{ij})$$
+
+$$B_{ij}\cos(\theta_i - \theta_j) \approx B_{ij}$$
+
+したがって：
+$$\frac{\partial P_i}{\partial \theta_j} \approx -|V_i||V_j|B_{ij} \tag{30}$$
+
+同様に、仮定A3により：
+$$\frac{\partial P_i}{\partial |V_j|} \approx B_{ij}(\theta_i - \theta_j) \approx 0 \tag{31}$$
+
+#### Step 2: 分離されたJacobian
+
+近似により、Jacobian行列は以下のように分離される：
+
+$$\mathbf{J} \approx \begin{bmatrix} -\mathbf{B}' & \mathbf{0} \\ \mathbf{0} & -\mathbf{B}'' \end{bmatrix} \tag{32}$$
+
+ここで：
+- $\mathbf{B}'$: P-θ カップリング行列
+- $\mathbf{B}''$: Q-|V| カップリング行列
+
+#### Step 3: B'およびB''行列の定義
+
+**B'行列（有効電力-位相角）：**
+$$B'_{ii} = \sum_{j \in \mathcal{N}_i} \frac{1}{x_{ij}} \tag{33}$$
+
+$$B'_{ij} = -\frac{1}{x_{ij}} \quad (i \neq j, \text{隣接母線}) \tag{34}$$
+
+**B''行列（無効電力-電圧大きさ）：**
+$$B''_{ii} = B'_{ii} + b_{sh,i} \tag{35}$$
+
+$$B''_{ij} = B'_{ij} \tag{36}$$
+
+ここで、$b_{sh,i}$ は母線 $i$ の分路サセプタンスである。
+
+### 3.3 分離された線形方程式
+
+近似により、連立方程式は2つの独立な部分問題に分離される：
+
+**P-θ 部分問題：**
+$$\Delta\mathbf{P} = -\mathbf{B}' \Delta\boldsymbol{\theta} \quad \Rightarrow \quad \Delta\boldsymbol{\theta} = -(\mathbf{B}')^{-1} \frac{\Delta\mathbf{P}}{|\mathbf{V}|} \tag{37}$$
+
+**Q-|V| 部分問題：**
+$$\Delta\mathbf{Q} = -\mathbf{B}'' \Delta|\mathbf{V}| \quad \Rightarrow \quad \Delta|\mathbf{V}| = -(\mathbf{B}'')^{-1} \frac{\Delta\mathbf{Q}}{|\mathbf{V}|} \tag{38}$$
+
+### 3.4 XB方式アルゴリズム
+
+**初期化：**
+1. $\mathbf{B}'$, $\mathbf{B}''$ 行列の構築
+2. LU分解：$\mathbf{B}' = \mathbf{L}_1 \mathbf{U}_1$, $\mathbf{B}'' = \mathbf{L}_2 \mathbf{U}_2$
+
+**反復計算（$k = 0, 1, 2, \ldots$）：**
+
+**Step 1**: P-θ サブ問題
+$$\Delta\mathbf{P}^{(k)} = \mathbf{P}_{spec} - \mathbf{P}_{calc}(\boldsymbol{\theta}^{(k)}, |\mathbf{V}|^{(k)}) \tag{39}$$
+
+$$\Delta\boldsymbol{\theta}^{(k)} = -(\mathbf{L}_1 \mathbf{U}_1)^{-1} \frac{\Delta\mathbf{P}^{(k)}}{|\mathbf{V}|^{(k)}} \tag{40}$$
+
+$$\boldsymbol{\theta}^{(k+1)} = \boldsymbol{\theta}^{(k)} + \Delta\boldsymbol{\theta}^{(k)} \tag{41}$$
+
+**Step 2**: Q-|V| サブ問題
+$$\Delta\mathbf{Q}^{(k)} = \mathbf{Q}_{spec} - \mathbf{Q}_{calc}(\boldsymbol{\theta}^{(k+1)}, |\mathbf{V}|^{(k)}) \tag{42}$$
+
+$$\Delta|\mathbf{V}|^{(k)} = -(\mathbf{L}_2 \mathbf{U}_2)^{-1} \frac{\Delta\mathbf{Q}^{(k)}}{|\mathbf{V}|^{(k)}} \tag{43}$$
+
+$$|\mathbf{V}|^{(k+1)} = |\mathbf{V}|^{(k)} + \Delta|\mathbf{V}|^{(k)} \tag{44}$$
+
+**収束判定：**
+$$\max(||\Delta\mathbf{P}^{(k)}||_\infty, ||\Delta\mathbf{Q}^{(k)}||_\infty) < \varepsilon \tag{45}$$
 
 ### 3.3 B'およびB''行列
 
@@ -613,38 +772,127 @@ V(s) = ∑_{n=0}^∞ V_n s^n
 
 ## 7. 収束理論
 
-### 7.1 不動点定理
+### 7.1 Newton法の収束理論
 
-潮流計算は不動点問題として定式化可能：
+#### 7.1.1 局所収束定理
 
-```
-x = G(x)
-```
+**定理 (Newton-Kantorovich定理)**  
+$\mathbf{f}: \mathbb{R}^n \to \mathbb{R}^n$ を $C^2$ 級関数とし、$\mathbf{x}^*$ を $\mathbf{f}(\mathbf{x}^*) = \mathbf{0}$ の解とする。以下の条件が満たされるとき、$\mathbf{x}^*$ の近傍で開始されたNewton反復は二次収束する：
 
-#### Banachの不動点定理
-- **縮小写像**: ||G(x) - G(y)|| ≤ L||x - y||, L < 1
-- **収束保証**: 一意不動点への収束
+1. $\mathbf{J}(\mathbf{x}^*)$ が正則（$\det(\mathbf{J}(\mathbf{x}^*)) \neq 0$）
+2. $\mathbf{J}(\mathbf{x})$ がLipschitz連続：$||\mathbf{J}(\mathbf{x}) - \mathbf{J}(\mathbf{y})|| \leq L||\mathbf{x} - \mathbf{y}||$
 
-#### Newton法の局所収束理論
-- **条件**: Jacobian正則、解近傍で開始
-- **収束次数**: 二次収束
+**収束率：**
+$$||\mathbf{x}^{(k+1)} - \mathbf{x}^*|| \leq C ||\mathbf{x}^{(k)} - \mathbf{x}^*||^2 \tag{70}$$
 
-### 7.2 収束判定基準
+ここで、$C$ は定数である。
 
-#### 無限大ノルム基準
-```
-||f(x)||_∞ < ε
-```
+#### 7.1.2 大域収束理論
 
-#### 相対誤差基準
-```
-||x^(k+1) - x^(k)|| / ||x^(k)|| < ε
-```
+Newton法の収束領域を拡大する手法：
 
-#### 個別成分基準
-```
-|ΔP_i| < ε_P かつ |ΔQ_i| < ε_Q  ∀i
-```
+**信頼領域法 (Trust Region Method)**
+
+各反復で以下の制約付き最適化問題を解く：
+$$\min_{\mathbf{d}} ||\mathbf{f}(\mathbf{x}^{(k)}) + \mathbf{J}(\mathbf{x}^{(k)})\mathbf{d}||^2 \quad \text{s.t.} \quad ||\mathbf{d}|| \leq \Delta^{(k)} \tag{71}$$
+
+**線探索法 (Line Search Method)**
+
+ステップサイズ $\alpha$ を調整：
+$$\mathbf{x}^{(k+1)} = \mathbf{x}^{(k)} + \alpha^{(k)} \mathbf{d}^{(k)} \tag{72}$$
+
+ここで、$\mathbf{d}^{(k)} = -[\mathbf{J}(\mathbf{x}^{(k)})]^{-1}\mathbf{f}(\mathbf{x}^{(k)})$ はNewton方向。
+
+### 7.2 不動点反復理論
+
+#### 7.2.1 Gauss-Seidel法の理論
+
+Gauss-Seidel法は不動点反復 $\mathbf{x} = \mathbf{G}(\mathbf{x})$ として定式化：
+
+$$V_i^{(k+1)} = G_i(V_1^{(k+1)}, \ldots, V_{i-1}^{(k+1)}, V_{i+1}^{(k)}, \ldots, V_n^{(k)}) \tag{73}$$
+
+**収束条件 (Banachの不動点定理)**
+
+$\mathbf{G}: D \subset \mathbb{C}^n \to D$ が縮小写像：
+$$||\mathbf{G}(\mathbf{x}) - \mathbf{G}(\mathbf{y})|| \leq \rho ||\mathbf{x} - \mathbf{y}||, \quad 0 \leq \rho < 1 \tag{74}$$
+
+このとき、唯一の不動点 $\mathbf{x}^*$ が存在し、任意の初期値から収束：
+$$||\mathbf{x}^{(k)} - \mathbf{x}^*|| \leq \rho^k ||\mathbf{x}^{(0)} - \mathbf{x}^*|| \tag{75}$$
+
+**線形収束率：**
+$$\rho = \lim_{k \to \infty} \frac{||\mathbf{x}^{(k+1)} - \mathbf{x}^*||}{||\mathbf{x}^{(k)} - \mathbf{x}^*||} \tag{76}$$
+
+#### 7.2.2 行列による収束解析
+
+Gauss-Seidel行列を $\mathbf{M} = (\mathbf{D} + \mathbf{L})^{-1}\mathbf{U}$ とすると：
+
+**収束条件：** $\rho(\mathbf{M}) < 1$ （スペクトル半径 < 1）
+
+**最適SOR係数：**
+$$\omega_{opt} = \frac{2}{1 + \sqrt{1 - \rho(\mathbf{B})^2}} \tag{77}$$
+
+ここで、$\mathbf{B}$ はJacobi反復行列。
+
+### 7.3 高速分離解法の収束理論
+
+#### 7.3.1 分解条件数
+
+$\mathbf{B}'$, $\mathbf{B}''$ 行列の条件数による収束性評価：
+
+$$\kappa(\mathbf{B}') = ||\mathbf{B}'|| \cdot ||(\mathbf{B}')^{-1}||, \quad \kappa(\mathbf{B}'') = ||\mathbf{B}''|| \cdot ||(\mathbf{B}'')^{-1}|| \tag{78}$$
+
+**収束性能：**  
+- $\kappa(\mathbf{B}')$, $\kappa(\mathbf{B}'') < 10^3$: 良好な収束  
+- $\kappa(\mathbf{B}')$, $\kappa(\mathbf{B}'') > 10^6$: 収束困難
+
+#### 7.3.2 近似誤差の伝播
+
+真のJacobian $\mathbf{J}$ と近似Jacobian $\mathbf{J}_{FD}$ の差：
+
+$$\Delta\mathbf{J} = \mathbf{J} - \mathbf{J}_{FD} = \begin{bmatrix} \mathbf{0} & \mathbf{J}_{P|V|} \\ \mathbf{J}_{Q\theta} & \mathbf{0} \end{bmatrix} \tag{79}$$
+
+摂動理論により、収束次数は以下に低下：
+$$r_{FD} \approx 1 + \frac{\log(||\Delta\mathbf{J}||)}{\log(||\mathbf{f}||)} \tag{80}$$
+
+### 7.4 収束判定基準
+
+#### 7.4.1 絶対誤差基準
+
+**最大値ノルム：**
+$$||\mathbf{f}(\mathbf{x}^{(k)})||_\infty = \max_i |f_i(\mathbf{x}^{(k)})| < \varepsilon \tag{81}$$
+
+**ユークリッドノルム：**
+$$||\mathbf{f}(\mathbf{x}^{(k)})||_2 = \sqrt{\sum_i f_i(\mathbf{x}^{(k)})^2} < \varepsilon \tag{82}$$
+
+#### 7.4.2 相対誤差基準
+
+$$\frac{||\mathbf{x}^{(k+1)} - \mathbf{x}^{(k)}||}{||\mathbf{x}^{(k)}||} < \varepsilon_{rel} \tag{83}$$
+
+#### 7.4.3 成分別基準
+
+工学的実用性を考慮：
+$$|\Delta P_i| < \varepsilon_P \quad \text{かつ} \quad |\Delta Q_i| < \varepsilon_Q \quad \forall i \tag{84}$$
+
+典型値：$\varepsilon_P = \varepsilon_Q = 10^{-4}$ pu (工学精度)、$10^{-8}$ pu (研究精度)
+
+### 7.5 数値的安定性
+
+#### 7.5.1 条件数と数値誤差
+
+機械精度 $\varepsilon_m$ の影響：
+$$\delta\mathbf{x} \approx \kappa(\mathbf{J}) \varepsilon_m ||\mathbf{x}|| \tag{85}$$
+
+**実用判定基準：**
+- $\kappa(\mathbf{J}) < 10^{12}$: 数値的に安定
+- $\kappa(\mathbf{J}) > 10^{15}$: 数値的不安定（特異に近い）
+
+#### 7.5.2 ピボット戦略
+
+**部分ピボット選択：**
+$$|a_{kk}^{(k)}| = \max_{k \leq i \leq n} |a_{ik}^{(k)}| \tag{86}$$
+
+**完全ピボット選択：**
+$$|a_{pq}^{(k)}| = \max_{\substack{k \leq i \leq n \\ k \leq j \leq n}} |a_{ij}^{(k)}| \tag{87}$$
 
 ### 7.3 収束加速技法
 
