@@ -31,7 +31,7 @@
 | **MATPOWER準拠実装** | Newton-Raphson, 高速分離解法 | [🚀 起動](https://lutelute.github.io/power_flow_viz/power_flow_matpower_v2.html) | [📖 詳細](./docs/power_flow_matpower_v2.md) |
 | **多手法比較分析** | 主要3手法の性能比較 | [🚀 起動](https://lutelute.github.io/power_flow_viz/power_flow_compare.html) | [📖 詳細](./docs/power_flow_compare.md) |
 | **収束過程直感的理解** | 複素平面・誤差面可視化 | [🚀 起動](https://lutelute.github.io/power_flow_viz/power_flow_intuitive.html) | [📖 詳細](./docs/power_flow_intuitive.md) |
-| **└ v5最新版** | 問題修正・UI改善版 | [🚀 v5起動](https://lutelute.github.io/power_flow_viz/power_flow_intuitive_v5.html) | 最新改善版 |
+| **└ v6_fixed最新版** | 完全修正・安定動作版 | [🚀 Fixed起動](https://lutelute.github.io/power_flow_viz/power_flow_intuitive_v6_fixed.html) | ✅推奨版 |
 | **DC潮流精度検証** | DC近似 vs AC解析 | [🚀 起動](https://lutelute.github.io/power_flow_viz/dc_accuracy_analysis.html) | [📖 詳細](./docs/dc_accuracy_analysis.md) |
 
 ## 🚀 使用方法
