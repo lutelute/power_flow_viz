@@ -418,25 +418,27 @@
             buses.push({ type: 'PQ', V: 1.0, delta: 0, Pspec: loadP, Qspec: loadQ });
         }
         
-        // 簡易的な送電線モデル (mesh topology)
-        const baseSusceptance = 20; // 基本サセプタンス
+        // 軽量な送電線モデル - 主に隣接ノード接続
         for (let i = 0; i < nBus; i++) {
-            let totalB = 0;
-            for (let j = 0; j < nBus; j++) {
-                if (i !== j) {
-                    // 距離ベースの接続確率 (近いバスほど接続しやすい)
-                    const distance = Math.abs(i - j);
-                    let connectProb = Math.exp(-distance / 5);
-                    if (distance === 1) connectProb = 0.8; // 隣接は高確率
-                    
-                    if (Math.random() < connectProb) {
-                        const susceptance = baseSusceptance * (0.5 + Math.random() * 0.5);
-                        Ybus[i][j] = { re: 2, im: susceptance }; // R + jX
-                        totalB += susceptance;
-                    }
+            // 隣接ノードとの接続（リング構造）
+            const next = (i + 1) % nBus;
+            const susceptance = 10 + Math.random() * 10; // 10-20
+            Ybus[i][next] = { re: 1, im: susceptance };
+            Ybus[next][i] = { re: 1, im: susceptance };
+            
+            // 少数の追加接続のみ（スパース化）
+            if (Math.random() < 0.3) { // 30%の確率で追加接続
+                const target = Math.floor(Math.random() * nBus);
+                if (target !== i && target !== next) {
+                    const addSusceptance = 5 + Math.random() * 5;
+                    Ybus[i][target] = { re: 0.5, im: addSusceptance };
+                    Ybus[target][i] = { re: 0.5, im: addSusceptance };
                 }
             }
-            // 対角要素（自己アドミタンス）
+        }
+        
+        // 対角要素計算（全接続後に実行）
+        for (let i = 0; i < nBus; i++) {
             let diagG = 0, diagB = 0;
             for (let j = 0; j < nBus; j++) {
                 if (i !== j && (Ybus[i][j].re !== 0 || Ybus[i][j].im !== 0)) {
@@ -451,7 +453,7 @@
             name: 'IEEE 30バス簡易系統',
             Ybus: Ybus,
             buses: buses,
-            solverBus: 5, // バス6を主要解析対象
+            solverBus: 2, // バス3を主要解析対象（安全な選択）
             initialV: 1.1,
             initialDelta: 0.1
         };
@@ -480,50 +482,27 @@
             buses.push({ type: 'PQ', V: 1.0, delta: 0, Pspec: loadP, Qspec: loadQ });
         }
         
-        // 送電線網生成 (scale-free network approximation)
-        const avgDegree = 6; // 平均次数
-        const connectionProb = avgDegree / nBus;
-        
+        // 軽量な送電線網生成 - 主にリング + 少数の追加接続
         for (let i = 0; i < nBus; i++) {
-            let totalB = 0;
-            let connectionCount = 0;
+            // 基本リング構造
+            const next = (i + 1) % nBus;
+            const reactance = 0.1 + Math.random() * 0.2; // 0.1-0.3 pu
+            Ybus[i][next] = { re: 0.02, im: reactance };
+            Ybus[next][i] = { re: 0.02, im: reactance };
             
-            for (let j = i + 1; j < nBus; j++) {
-                let prob = connectionProb;
-                
-                // 距離効果 (近いバス同士は接続しやすい)
-                const distance = Math.abs(i - j);
-                if (distance <= 3) prob *= 3;
-                else if (distance <= 10) prob *= 1.5;
-                else prob *= 0.5;
-                
-                // 発電機同士の接続を優遇
-                if (buses[i].type !== 'PQ' && buses[j].type !== 'PQ') {
-                    prob *= 2;
-                }
-                
-                if (Math.random() < Math.min(prob, 0.3)) {
-                    const resistance = 0.01 + Math.random() * 0.05; // 0.01-0.06 pu
-                    const reactance = 0.1 + Math.random() * 0.4; // 0.1-0.5 pu
-                    
-                    Ybus[i][j] = { re: resistance, im: reactance };
-                    Ybus[j][i] = { re: resistance, im: reactance };
-                    
-                    totalB += reactance;
-                    connectionCount++;
+            // 限定的な追加接続（スパース化）
+            if (Math.random() < 0.2) { // 20%の確率
+                const target = (i + 2 + Math.floor(Math.random() * (nBus - 4))) % nBus;
+                if (target !== i && target !== next) {
+                    const addReactance = 0.15 + Math.random() * 0.25;
+                    Ybus[i][target] = { re: 0.01, im: addReactance };
+                    Ybus[target][i] = { re: 0.01, im: addReactance };
                 }
             }
-            
-            // 最低接続数を保証 (isolated bus を防ぐ)
-            if (connectionCount === 0 && i > 0) {
-                const target = Math.max(0, Math.floor(Math.random() * i));
-                const reactance = 0.2 + Math.random() * 0.3;
-                Ybus[i][target] = { re: 0.02, im: reactance };
-                Ybus[target][i] = { re: 0.02, im: reactance };
-                totalB += reactance;
-            }
-            
-            // 対角要素計算 (自己アドミタンス = 接続されたブランチの合計)
+        }
+        
+        // 対角要素計算（全接続後に実行）
+        for (let i = 0; i < nBus; i++) {
             let diagG = 0, diagB = 0;
             for (let j = 0; j < nBus; j++) {
                 if (i !== j && (Ybus[i][j].re !== 0 || Ybus[i][j].im !== 0)) {
@@ -538,7 +517,7 @@
             name: `${nBus}ノード ランダム系統`,
             Ybus: Ybus,
             buses: buses,
-            solverBus: Math.min(10, nBus - 1), // 適当な負荷バス
+            solverBus: Math.min(2, nBus - 1), // 安全な負荷バス選択
             initialV: 1.15,
             initialDelta: 0.15
         };
@@ -1492,7 +1471,9 @@
         const range = getViewRange();
         const prob = getDynamicProblem(state.problem);
         const busIdx = prob.solverBus;
-        const gridSize = 10;
+        
+        // 大規模系統では計算負荷軽減のためグリッドサイズを調整
+        const gridSize = prob.buses && prob.buses.length > 10 ? 6 : 10;
         const cellW = w / gridSize, cellH = h / gridSize;
 
         for (let i = 1; i < gridSize; i++) {
