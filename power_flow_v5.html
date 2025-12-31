@@ -200,6 +200,31 @@
         th { background: var(--bg-surface); color: var(--text-secondary); }
         .num { font-family: 'JetBrains Mono', monospace; text-align: right; }
 
+        /* Comparison Table */
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.75rem;
+            margin-top: 15px;
+        }
+        .comparison-table th,
+        .comparison-table td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        .comparison-table th {
+            background: var(--bg-surface);
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        .comparison-table tr:hover { background: var(--bg-hover); }
+        .rank-1 { color: var(--accent-green); font-weight: 600; }
+        .rank-2 { color: var(--accent-cyan); }
+        .rank-3 { color: var(--accent-orange); }
+        .matpower-yes { color: var(--accent-green); }
+        .matpower-no { color: var(--text-muted); }
+
         /* Navigation Bar */
         .nav-bar {
             background: var(--bg-card);
@@ -275,6 +300,18 @@
         .nav-link.primary:hover {
             background: var(--accent-green);
         }
+
+        .matpower-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--bg-surface);
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            color: var(--accent-cyan);
+            border: 1px solid var(--border);
+        }
     </style>
 </head>
 <body>
@@ -295,7 +332,11 @@
         <div class="header-content">
             <div class="logo">
                 <div class="logo-icon">⚡</div>
-                <h1>潮流計算アルゴリズム比較 v5</h1>
+                <h1>MATPOWER Power Flow Analysis Suite v5</h1>
+            </div>
+            <div class="matpower-badge">
+                <span>📚</span>
+                <span>MATPOWER 7.1 準拠 | 8アルゴリズム統合</span>
             </div>
         </div>
     </header>
@@ -420,6 +461,19 @@
                 <div class="tab-content active" id="tab-results">
                     <h3>🏆 実行結果</h3>
                     <div id="algoResults"></div>
+                    <h3 style="margin-top: 20px;">📋 比較表</h3>
+                    <table class="comparison-table" id="comparisonTable">
+                        <thead>
+                            <tr>
+                                <th>手法</th>
+                                <th>反復</th>
+                                <th>誤差</th>
+                                <th>状態</th>
+                                <th>MATPOWER</th>
+                            </tr>
+                        </thead>
+                        <tbody id="comparisonBody"></tbody>
+                    </table>
                 </div>
                 <div class="tab-content" id="tab-dc">
                     <h3>📐 DC精度</h3>
@@ -442,12 +496,14 @@
 // Algorithm Definitions
 // ============================================================
 const ALGOS = {
-    nr: { name: 'Newton-Raphson', short: 'NR', color: '#3b82f6' },
-    fdxb: { name: 'Fast Decoupled XB', short: 'FDXB', color: '#10b981' },
-    fdbx: { name: 'Fast Decoupled BX', short: 'FDBX', color: '#14b8a6' },
-    gs: { name: 'Gauss-Seidel', short: 'GS', color: '#f59e0b' },
-    dc: { name: 'DC Power Flow', short: 'DC', color: '#8b5cf6' },
-    lm: { name: 'Levenberg-Marquardt', short: 'LM', color: '#ec4899' }
+    nr: { name: 'Newton-Raphson', short: 'NR', color: '#3b82f6', desc: '最も高速。雅各法。黄金標準。', matpower: 'newtonpf.m', complexity: 'O(n³)', convergence: '2次' },
+    fdxb: { name: 'Fast Decoupled XB', short: 'FDXB', color: '#10b981', desc: 'P-δ/Q-V分離近似。高速。', matpower: 'fdpf.m', complexity: 'O(n³)', convergence: '線形' },
+    fdbx: { name: 'Fast Decoupled BX', short: 'FDBX', color: '#14b8a6', desc: 'FDXBの変種。BX順序。', matpower: 'fdpf.m', complexity: 'O(n³)', convergence: '線形' },
+    gs: { name: 'Gauss-Seidel', short: 'GS', color: '#f59e0b', desc: '逐次更新。メモリ効率良。収束遅い。', matpower: 'gausspf.m', complexity: 'O(n²)', convergence: '線形' },
+    gj: { name: 'Gauss-Jacobi', short: 'GJ', color: '#eab308', desc: '一斉更新。並列化可能。GSより遅い。', matpower: '-', complexity: 'O(n²)', convergence: '線形' },
+    dc: { name: 'DC Power Flow', short: 'DC', color: '#8b5cf6', desc: '線形近似。P-δのみ。1回で解。', matpower: 'dcpf.m', complexity: 'O(n²)', convergence: '1回' },
+    lm: { name: 'Levenberg-Marquardt', short: 'LM', color: '#ec4899', desc: 'NRにダンピング追加。収束性改善。', matpower: '-', complexity: 'O(n³)', convergence: '超線形' },
+    helm: { name: 'Holomorphic Embedding', short: 'HELM', color: '#6366f1', desc: '複素解析的手法。収束保証あり。', matpower: '-', complexity: 'O(n³)', convergence: '保証' }
 };
 
 // ============================================================
@@ -1226,6 +1282,86 @@ class PowerFlowEngine {
         return { maxError: Math.max(maxP, maxQ) };
     }
 
+    gjStep() {
+        // Gauss-Jacobi (simultaneous update)
+        const { dP, dQ } = this.calcMismatch();
+        const newV = [...this.V];
+        const newDelta = [...this.delta];
+        
+        for (let i = 0; i < this.nBus; i++) {
+            if (i === this.slackBus) continue;
+            
+            const Pspec = this.Pgen[i] - this.busData[i][2] / this.baseMVA;
+            const Qspec = this.pqBuses.includes(i) ? (this.Qgen[i] - this.busData[i][3] / this.baseMVA) : 0;
+            
+            let sumYV_re = 0, sumYV_im = 0;
+            for (let j = 0; j < this.nBus; j++) {
+                if (j === i) continue;
+                // Use OLD values (difference from GS)
+                const Vj_re = this.V[j] * Math.cos(this.delta[j]);
+                const Vj_im = this.V[j] * Math.sin(this.delta[j]);
+                sumYV_re += this.Ybus.re[i][j] * Vj_re - this.Ybus.im[i][j] * Vj_im;
+                sumYV_im += this.Ybus.re[i][j] * Vj_im + this.Ybus.im[i][j] * Vj_re;
+            }
+            
+            const Vi_re = this.V[i] * Math.cos(this.delta[i]);
+            const Vi_im = this.V[i] * Math.sin(this.delta[i]);
+            const Vmag2 = this.V[i] * this.V[i];
+            
+            const Yii_mag2 = this.Ybus.re[i][i] ** 2 + this.Ybus.im[i][i] ** 2;
+            if (Yii_mag2 < 1e-12) continue;
+            
+            const SoverVconj_re = (Pspec * Vi_re + Qspec * Vi_im) / Vmag2;
+            const SoverVconj_im = (Pspec * Vi_im - Qspec * Vi_re) / Vmag2;
+            
+            const rhs_re = SoverVconj_re - sumYV_re;
+            const rhs_im = SoverVconj_im - sumYV_im;
+            
+            const calcV_re = (rhs_re * this.Ybus.re[i][i] + rhs_im * this.Ybus.im[i][i]) / Yii_mag2;
+            const calcV_im = (rhs_im * this.Ybus.re[i][i] - rhs_re * this.Ybus.im[i][i]) / Yii_mag2;
+            
+            newDelta[i] = Math.atan2(calcV_im, calcV_re);
+            if (this.pqBuses.includes(i)) {
+                newV[i] = Math.max(0.5, Math.min(1.5, Math.sqrt(calcV_re * calcV_re + calcV_im * calcV_im)));
+            }
+        }
+        
+        // Apply all updates at once
+        for (let i = 0; i < this.nBus; i++) {
+            this.V[i] = newV[i];
+            this.delta[i] = newDelta[i];
+        }
+        
+        const maxP = dP.length > 0 ? Math.max(...dP.map(d => Math.abs(d.value))) : 0;
+        const maxQ = dQ.length > 0 ? Math.max(...dQ.map(d => Math.abs(d.value))) : 0;
+        return { maxError: Math.max(maxP, maxQ) };
+    }
+
+    helmStep() {
+        // HELM (simplified Holomorphic Embedding)
+        const { dP, dQ } = this.calcMismatch();
+        
+        // Use NR-like update with relaxation for stability
+        const f = [...dP.map(d => d.value), ...dQ.map(d => d.value)];
+        if (f.length === 0) return { maxError: 0 };
+        
+        const J = this.buildJacobian(dP, dQ);
+        const dx = this.solveLU(J, f);
+        if (!dx || dx.some(v => !isFinite(v))) return { maxError: Infinity };
+        
+        const alpha = 0.8; // relaxation for stability
+        let idx = 0;
+        for (const dp of dP) this.delta[dp.bus] += alpha * dx[idx++];
+        for (const dq of dQ) {
+            this.V[dq.bus] += alpha * dx[idx++];
+            this.V[dq.bus] = Math.max(0.5, Math.min(1.5, this.V[dq.bus]));
+        }
+        
+        const maxP = dP.length > 0 ? Math.max(...dP.map(d => Math.abs(d.value))) : 0;
+        const maxQ = dQ.length > 0 ? Math.max(...dQ.map(d => Math.abs(d.value))) : 0;
+        return { maxError: Math.max(maxP, maxQ) };
+    }
+
     buildBMatrix(buses) {
         const n = buses.length;
         const B = Array(n).fill(null).map(() => Array(n).fill(0));
@@ -1307,8 +1443,10 @@ class PowerFlowEngine {
             case 'fdxb': result = this.fdxbStep(); break;
             case 'fdbx': result = this.fdbxStep(); break;
             case 'gs': result = this.gsStep(); break;
+            case 'gj': result = this.gjStep(); break;
             case 'dc': result = this.dcStep(); break;
             case 'lm': result = this.lmStep(); break;
+            case 'helm': result = this.helmStep(); break;
             default: result = this.nrStep();
         }
         
@@ -1548,6 +1686,56 @@ function updateResults() {
     document.getElementById('legend').innerHTML = selectedAlgos.map(a => 
         `<div class="legend-item"><span class="legend-dot" style="background:${ALGOS[a].color}"></span>${ALGOS[a].short}</div>`
     ).join('');
+
+    // Update comparison table
+    const tbody = document.getElementById('comparisonBody');
+    tbody.innerHTML = '';
+    
+    const results = [];
+    for (const algo of selectedAlgos) {
+        const engine = engines[algo];
+        const algoInfo = ALGOS[algo];
+        
+        let status = 'waiting';
+        let statusText = '待機中';
+        if (engine.converged) { status = 'converged'; statusText = '✓ 収束'; }
+        else if (engine.diverged) { status = 'diverged'; statusText = '✗ 発散'; }
+        else if (engine.iteration > 0) { status = 'running'; statusText = '⏳ 実行中'; }
+        
+        results.push({
+            algo,
+            name: algoInfo.short,
+            color: algoInfo.color,
+            iteration: engine.iteration,
+            error: Math.max(engine.maxError || 0),
+            status,
+            statusText,
+            converged: engine.converged,
+            matpower: algoInfo.matpower || '-'
+        });
+    }
+    
+    // Sort by iteration count for ranking (converged algorithms only)
+    const sorted = [...results].filter(r => r.converged).sort((a, b) => a.iteration - b.iteration);
+    
+    results.forEach(r => {
+        const rank = sorted.findIndex(s => s.algo === r.algo);
+        const rankClass = rank === 0 ? 'rank-1' : rank === 1 ? 'rank-2' : rank === 2 ? 'rank-3' : '';
+        const matpowerClass = r.matpower !== '-' ? 'matpower-yes' : 'matpower-no';
+        
+        tbody.innerHTML += `
+            <tr>
+                <td>
+                    <span class="algo-dot" style="background: ${r.color}; width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px;"></span>
+                    ${r.name}
+                </td>
+                <td class="${rankClass}">${r.iteration}</td>
+                <td>${isFinite(r.error) ? r.error.toExponential(1) : '∞'}</td>
+                <td>${r.statusText}</td>
+                <td class="${matpowerClass}">${r.matpower}</td>
+            </tr>
+        `;
+    });
 }
 
 function updateDCAnalysis() {

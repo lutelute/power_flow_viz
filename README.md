@@ -25,8 +25,7 @@
 
 | ツール名 | 主要機能 | オンライン版 | 詳細文書 |
 |---|---|---|---|
-| **包括的アルゴリズム比較** | 20+手法の実装・ベンチマーク | [🚀 v5起動](https://lutelute.github.io/power_flow_viz/power_flow_v5.html) | [📖 詳細](./docs/power_flow_v5.md) |
-| **MATPOWER準拠比較分析** | 学術標準・8手法詳細比較 | [🚀 MATPOWER起動](https://lutelute.github.io/power_flow_viz/power_flow_compare.html) | [📖 詳細](./docs/power_flow_compare.md) |
+| **MATPOWER準拠分析スイート** | 8手法統合・学術標準完全対応 | [🚀 統合版起動](https://lutelute.github.io/power_flow_viz/power_flow_v5.html) | [📖 詳細](./docs/power_flow_v5.md) |
 | **多手法可視化** | Newton-Raphson, Gauss-Seidel等 | [🚀 起動](https://lutelute.github.io/power_flow_viz/power_flow_visualizer.html) | [📖 詳細](./docs/power_flow_visualizer.md) |
 | **計算過程ステップ表示** | 5手法の段階別解説 | [🚀 起動](https://lutelute.github.io/power_flow_viz/power_flow_process_visualizer_v2.html) | [📖 詳細](./docs/power_flow_process_visualizer.md) |
 | **MATPOWER準拠実装** | Newton-Raphson, 高速分離解法 | [🚀 起動](https://lutelute.github.io/power_flow_viz/power_flow_matpower_v2.html) | [📖 詳細](./docs/power_flow_matpower_v2.md) |
@@ -60,8 +59,7 @@ open power_flow_v5.html
 
 1. **入門** [`power_flow_intuitive_v6_fixed.html`](https://lutelute.github.io/power_flow_viz/power_flow_intuitive_v6_fixed.html) - 基本概念の理解（最新固定版）
 2. **基礎** [`power_flow_process_visualizer_v2.html`](https://lutelute.github.io/power_flow_viz/power_flow_process_visualizer_v2.html) - アルゴリズム詳細（v2最新版）  
-3. **応用** [`power_flow_compare.html`](https://lutelute.github.io/power_flow_viz/power_flow_compare.html) - MATPOWER準拠比較分析
-4. **発展** [`power_flow_v5.html`](https://lutelute.github.io/power_flow_viz/power_flow_v5.html) - 包括的アルゴリズム集
+3. **応用** [`power_flow_v5.html`](https://lutelute.github.io/power_flow_viz/power_flow_v5.html) - MATPOWER準拠統合分析スイート
 5. **実務** [`power_flow_matpower_v2.html`](https://lutelute.github.io/power_flow_viz/power_flow_matpower_v2.html) - 実用的実装
 
 ## 📊 実装アルゴリズム
