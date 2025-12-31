@@ -223,6 +223,8 @@
                     <option value="2bus_voltage_collapse">2ノード(電圧崩壊直前) - 非常に困難</option>
                     <option value="3bus_unbalanced">3ノード(不平衡負荷) - 困難</option>
                     <option value="3bus">3ノード系統 - 標準</option>
+                    <option value="30bus_ieee">30ノード系統(IEEE標準) - 大規模</option>
+                    <option value="118bus_random">118ノード系統(ランダム生成) - 超大規模</option>
                 </select>
             </div>
             <div class="control-group">
@@ -389,6 +391,161 @@
             initialV: 1.05, initialDelta: 0.05
         }
     };
+
+    // ================================================================
+    // 大規模系統生成関数
+    // ================================================================
+    
+    // IEEE 30バスシステムの簡略版
+    function generateIEEE30System() {
+        const nBus = 30;
+        const Ybus = Array(nBus).fill(null).map(() => Array(nBus).fill(null).map(() => ({re: 0, im: 0})));
+        const buses = [];
+        
+        // バス1: Slack bus
+        buses.push({ type: 'Slack', V: 1.06, delta: 0 });
+        
+        // 主要PVバス
+        buses.push({ type: 'PV', V: 1.043, Pspec: 0.4 });  // Bus 2
+        buses.push({ type: 'PV', V: 1.025, Pspec: 0.0 });  // Bus 3
+        buses.push({ type: 'PV', V: 1.01, Pspec: 0.0 });   // Bus 4
+        buses.push({ type: 'PV', V: 1.01, Pspec: 0.0 });   // Bus 5
+        
+        // PQバス (負荷)
+        for (let i = 5; i < nBus; i++) {
+            const loadP = -0.1 - Math.random() * 0.4; // -0.1 to -0.5 MW
+            const loadQ = -0.05 - Math.random() * 0.2; // -0.05 to -0.25 MVAR
+            buses.push({ type: 'PQ', V: 1.0, delta: 0, Pspec: loadP, Qspec: loadQ });
+        }
+        
+        // 簡易的な送電線モデル (mesh topology)
+        const baseSusceptance = 20; // 基本サセプタンス
+        for (let i = 0; i < nBus; i++) {
+            let totalB = 0;
+            for (let j = 0; j < nBus; j++) {
+                if (i !== j) {
+                    // 距離ベースの接続確率 (近いバスほど接続しやすい)
+                    const distance = Math.abs(i - j);
+                    let connectProb = Math.exp(-distance / 5);
+                    if (distance === 1) connectProb = 0.8; // 隣接は高確率
+                    
+                    if (Math.random() < connectProb) {
+                        const susceptance = baseSusceptance * (0.5 + Math.random() * 0.5);
+                        Ybus[i][j] = { re: 2, im: susceptance }; // R + jX
+                        totalB += susceptance;
+                    }
+                }
+            }
+            // 対角要素（自己アドミタンス）
+            Ybus[i][i] = { re: totalB * 0.1, im: -totalB };
+        }
+        
+        return {
+            name: 'IEEE 30バス簡易系統',
+            Ybus: Ybus,
+            buses: buses,
+            solverBus: 5, // バス6を主要解析対象
+            initialV: 1.1,
+            initialDelta: 0.1
+        };
+    }
+    
+    // ランダム118バスシステム
+    function generateRandomPowerSystem(nBus = 118) {
+        const Ybus = Array(nBus).fill(null).map(() => Array(nBus).fill(null).map(() => ({re: 0, im: 0})));
+        const buses = [];
+        
+        // バス1: Slack bus
+        buses.push({ type: 'Slack', V: 1.05, delta: 0 });
+        
+        // 発電機バス (PVバス) - 約15%
+        const nGen = Math.floor(nBus * 0.15);
+        for (let i = 1; i < nGen; i++) {
+            const Pgen = 0.2 + Math.random() * 0.8; // 0.2-1.0 MW
+            const V = 1.0 + (Math.random() - 0.5) * 0.1; // 0.95-1.05
+            buses.push({ type: 'PV', V: V, Pspec: Pgen });
+        }
+        
+        // 負荷バス (PQバス) - 残り
+        for (let i = nGen; i < nBus; i++) {
+            const loadP = -0.05 - Math.random() * 0.3; // -0.05 to -0.35 MW
+            const loadQ = -0.02 - Math.random() * 0.15; // -0.02 to -0.17 MVAR
+            buses.push({ type: 'PQ', V: 1.0, delta: 0, Pspec: loadP, Qspec: loadQ });
+        }
+        
+        // 送電線網生成 (scale-free network approximation)
+        const avgDegree = 6; // 平均次数
+        const connectionProb = avgDegree / nBus;
+        
+        for (let i = 0; i < nBus; i++) {
+            let totalB = 0;
+            let connectionCount = 0;
+            
+            for (let j = i + 1; j < nBus; j++) {
+                let prob = connectionProb;
+                
+                // 距離効果 (近いバス同士は接続しやすい)
+                const distance = Math.abs(i - j);
+                if (distance <= 3) prob *= 3;
+                else if (distance <= 10) prob *= 1.5;
+                else prob *= 0.5;
+                
+                // 発電機同士の接続を優遇
+                if (buses[i].type !== 'PQ' && buses[j].type !== 'PQ') {
+                    prob *= 2;
+                }
+                
+                if (Math.random() < Math.min(prob, 0.3)) {
+                    const resistance = 0.01 + Math.random() * 0.05; // 0.01-0.06 pu
+                    const reactance = 0.1 + Math.random() * 0.4; // 0.1-0.5 pu
+                    
+                    Ybus[i][j] = { re: resistance, im: reactance };
+                    Ybus[j][i] = { re: resistance, im: reactance };
+                    
+                    totalB += reactance;
+                    connectionCount++;
+                }
+            }
+            
+            // 最低接続数を保証 (isolated bus を防ぐ)
+            if (connectionCount === 0 && i > 0) {
+                const target = Math.max(0, Math.floor(Math.random() * i));
+                const reactance = 0.2 + Math.random() * 0.3;
+                Ybus[i][target] = { re: 0.02, im: reactance };
+                Ybus[target][i] = { re: 0.02, im: reactance };
+                totalB += reactance;
+            }
+            
+            // 対角要素計算
+            let diagB = 0;
+            for (let j = 0; j < nBus; j++) {
+                if (i !== j) {
+                    diagB += Ybus[i][j].im;
+                }
+            }
+            Ybus[i][i] = { re: diagB * 0.05, im: -diagB };
+        }
+        
+        return {
+            name: `${nBus}ノード ランダム系統`,
+            Ybus: Ybus,
+            buses: buses,
+            solverBus: Math.min(10, nBus - 1), // 適当な負荷バス
+            initialV: 1.15,
+            initialDelta: 0.15
+        };
+    }
+    
+    // 動的問題取得関数
+    function getDynamicProblem(problemKey) {
+        if (problemKey === '30bus_ieee') {
+            return generateIEEE30System();
+        } else if (problemKey === '118bus_random') {
+            return generateRandomPowerSystem(118);
+        } else {
+            return problems[problemKey];
+        }
+    }
 
     // ================================================================
     // 状態管理
@@ -619,10 +776,20 @@
     function calcMismatch(prob, busIdx, V, delta) {
         const { Pcalc, Qcalc } = calcPQ(prob, busIdx, V, delta);
         const bus = prob.buses[busIdx];
-        return {
-            deltaP: bus.Pspec - Pcalc,
-            deltaQ: bus.Qspec - Qcalc
-        };
+        
+        if (bus.type === 'PV') {
+            // PVバス: P指定、V指定
+            return {
+                deltaP: bus.Pspec - Pcalc,
+                deltaQ: bus.V - V  // 電圧大きさの誤差
+            };
+        } else {
+            // PQバス: P指定、Q指定
+            return {
+                deltaP: bus.Pspec - Pcalc,
+                deltaQ: bus.Qspec - Qcalc
+            };
+        }
     }
 
     // 誤差ノルム
@@ -687,7 +854,7 @@
     // ================================================================
     
     function newtonStep() {
-        const prob = problems[state.problem];
+        const prob = getDynamicProblem(state.problem);
         const busIdx = prob.solverBus;
         const m = calcMismatch(prob, busIdx, state.V, state.delta);
         const J = calcJacobian(prob, busIdx, state.V, state.delta);
@@ -712,7 +879,7 @@
     }
 
     function gaussSeidelStep() {
-        const prob = problems[state.problem];
+        const prob = getDynamicProblem(state.problem);
         const busIdx = prob.solverBus;
         const Ybus = prob.Ybus;
         const bus = prob.buses[busIdx];
@@ -780,7 +947,7 @@
     }
 
     function gradientStep() {
-        const prob = problems[state.problem];
+        const prob = getDynamicProblem(state.problem);
         const busIdx = prob.solverBus;
         const currentError = calcError(prob, busIdx, state.V, state.delta);
         
@@ -837,7 +1004,7 @@
         state.V = dc.V;
         state.delta = dc.delta;
         
-        const prob = problems[state.problem];
+        const prob = getDynamicProblem(state.problem);
         const error = calcError(prob, prob.solverBus, state.V, state.delta);
         
         log(`DC潮流法の結果:`);
@@ -881,7 +1048,7 @@
         state.running = false;
         state.iteration = 0;
         
-        const prob = problems[state.problem];
+        const prob = getDynamicProblem(state.problem);
         state.V = prob.initialV;
         state.delta = prob.initialDelta;
         state.trajectory = [{ V: state.V, delta: state.delta }];
@@ -1015,7 +1182,7 @@
     // ================================================================
     
     function getViewRange() {
-        const prob = problems[state.problem];
+        const prob = getDynamicProblem(state.problem);
         let allV = [state.trueSolution?.V || 1, state.dcSolution?.V || 1, prob.initialV];
         let allD = [state.trueSolution?.delta || 0, state.dcSolution?.delta || 0, prob.initialDelta];
         
@@ -1131,7 +1298,7 @@
         const w = canvas.width, h = canvas.height;
 
         const range = getViewRange();
-        const prob = problems[state.problem];
+        const prob = getDynamicProblem(state.problem);
         const busIdx = prob.solverBus;
         const res = 40;
         
@@ -1297,7 +1464,7 @@
         ctx.fillRect(0, 0, w, h);
 
         const range = getViewRange();
-        const prob = problems[state.problem];
+        const prob = getDynamicProblem(state.problem);
         const busIdx = prob.solverBus;
         const gridSize = 10;
         const cellW = w / gridSize, cellH = h / gridSize;
