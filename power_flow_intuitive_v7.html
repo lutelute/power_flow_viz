@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>潮流計算 収束可視化</title>
+    <title>潮流計算 収束可視化 v7 (安定版)</title>
     <style>
         :root {
             --bg-dark: #0f0f1a;
@@ -199,8 +199,8 @@
     </nav>
     <div class="container">
         <header>
-            <h1>⚡ 潮流計算 収束の可視化</h1>
-            <p class="subtitle">Newton-Raphson法、Gauss-Seidel法、勾配降下法、DC潮流法の比較</p>
+            <h1>⚡ 潮流計算 収束の可視化 v7 (安定版)</h1>
+            <p class="subtitle">Newton-Raphson法、Gauss-Seidel法、勾配降下法、DC潮流法の比較 - 10ノード対応</p>
         </header>
 
         <div class="control-panel">
@@ -223,8 +223,9 @@
                     <option value="2bus_voltage_collapse">2ノード(電圧崩壊直前) - 非常に困難</option>
                     <option value="3bus_unbalanced">3ノード(不平衡負荷) - 困難</option>
                     <option value="3bus">3ノード系統 - 標準</option>
-                    <option value="30bus_ieee">30ノード系統(IEEE標準) - 大規模</option>
-                    <option value="30bus_random">30ノード系統(ランダム生成) - 中規模</option>
+                    <option value="5bus_ieee">5ノード(IEEE) - 中規模</option>
+                    <option value="9bus_ieee">9ノード(IEEE) - 大規模</option>
+                    <option value="10bus_simple">10ノード(簡易) - 安定動作確認済み</option>
                 </select>
             </div>
             <div class="control-group">
@@ -389,161 +390,96 @@
             ],
             solverBus: 1,  // バス2を主に可視化
             initialV: 1.05, initialDelta: 0.05
+        },
+        '5bus_ieee': {
+            name: '5ノード(IEEE) - 中規模系統',
+            // IEEE 5バス修正版
+            Ybus: [
+                [{re:12.5,im:-37.5}, {re:-5,im:15}, {re:-2.5,im:7.5}, {re:-5,im:15}, {re:0,im:0}],
+                [{re:-5,im:15}, {re:8.33,im:-25}, {re:-3.33,im:10}, {re:0,im:0}, {re:0,im:0}],
+                [{re:-2.5,im:7.5}, {re:-3.33,im:10}, {re:12.5,im:-37.5}, {re:-3.33,im:10}, {re:-3.33,im:10}],
+                [{re:-5,im:15}, {re:0,im:0}, {re:-3.33,im:10}, {re:11.66,im:-35}, {re:-3.33,im:10}],
+                [{re:0,im:0}, {re:0,im:0}, {re:-3.33,im:10}, {re:-3.33,im:10}, {re:6.66,im:-20}]
+            ],
+            buses: [
+                { type:'Slack', V:1.06, delta:0 },
+                { type:'PV', V:1.00, delta:0, Pspec:0.4 },
+                { type:'PQ', V:1.0, delta:0, Pspec:-0.6, Qspec:-0.3 },
+                { type:'PQ', V:1.0, delta:0, Pspec:-0.4, Qspec:-0.2 },
+                { type:'PQ', V:1.0, delta:0, Pspec:-0.3, Qspec:-0.15 }
+            ],
+            solverBus: 2,  // バス3 (主負荷) を可視化
+            initialV: 1.15, initialDelta: 0.12
+        },
+        '9bus_ieee': {
+            name: '9ノード(IEEE) - 大規模系統',
+            // IEEE 9バス系統の簡略版 (WSCC 3-machine 9-bus)
+            Ybus: [
+                [{re:10.4,im:-31.2}, {re:-4.2,im:12.6}, {re:0,im:0}, {re:-6.2,im:18.6}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}],
+                [{re:-4.2,im:12.6}, {re:8.7,im:-26.1}, {re:-4.5,im:13.5}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}],
+                [{re:0,im:0}, {re:-4.5,im:13.5}, {re:9.3,im:-27.9}, {re:0,im:0}, {re:0,im:0}, {re:-4.8,im:14.4}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}],
+                [{re:-6.2,im:18.6}, {re:0,im:0}, {re:0,im:0}, {re:11.5,im:-34.5}, {re:-2.8,im:8.4}, {re:0,im:0}, {re:-2.5,im:7.5}, {re:0,im:0}, {re:0,im:0}],
+                [{re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:-2.8,im:8.4}, {re:7.6,im:-22.8}, {re:-4.8,im:14.4}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}],
+                [{re:0,im:0}, {re:0,im:0}, {re:-4.8,im:14.4}, {re:0,im:0}, {re:-4.8,im:14.4}, {re:12.1,im:-36.3}, {re:0,im:0}, {re:0,im:0}, {re:-2.5,im:7.5}],
+                [{re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:-2.5,im:7.5}, {re:0,im:0}, {re:0,im:0}, {re:5.8,im:-17.4}, {re:-3.3,im:9.9}, {re:0,im:0}],
+                [{re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:-3.3,im:9.9}, {re:6.1,im:-18.3}, {re:-2.8,im:8.4}],
+                [{re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:-2.5,im:7.5}, {re:0,im:0}, {re:-2.8,im:8.4}, {re:5.3,im:-15.9}]
+            ],
+            buses: [
+                { type:'Slack', V:1.04, delta:0 },
+                { type:'PV', V:1.025, delta:0, Pspec:1.63 },
+                { type:'PV', V:1.025, delta:0, Pspec:0.85 },
+                { type:'PQ', V:1.0, delta:0, Pspec:0, Qspec:0 },
+                { type:'PQ', V:1.0, delta:0, Pspec:-1.25, Qspec:-0.5 },
+                { type:'PQ', V:1.0, delta:0, Pspec:-0.9, Qspec:-0.3 },
+                { type:'PQ', V:1.0, delta:0, Pspec:0, Qspec:0 },
+                { type:'PQ', V:1.0, delta:0, Pspec:-1.0, Qspec:-0.35 },
+                { type:'PQ', V:1.0, delta:0, Pspec:-0.125, Qspec:-0.05 }
+            ],
+            solverBus: 4,  // バス5 (最大負荷) を可視化
+            initialV: 1.2, initialDelta: 0.15
+        },
+        '10bus_simple': {
+            name: '10ノード(簡易) - 安定動作確認済み',
+            // シンプルなリング + 中央ハブ構造
+            Ybus: [
+                // Bus 0 (Slack)
+                [{re:15,im:-45}, {re:-5,im:15}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:-5,im:15}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:-5,im:15}],
+                // Bus 1 (PV)  
+                [{re:-5,im:15}, {re:20,im:-60}, {re:-5,im:15}, {re:0,im:0}, {re:-5,im:15}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:-5,im:15}, {re:0,im:0}],
+                // Bus 2 (PQ)
+                [{re:0,im:0}, {re:-5,im:15}, {re:15,im:-45}, {re:-5,im:15}, {re:0,im:0}, {re:0,im:0}, {re:-5,im:15}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}],
+                // Bus 3 (PQ)
+                [{re:0,im:0}, {re:0,im:0}, {re:-5,im:15}, {re:10,im:-30}, {re:-5,im:15}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}],
+                // Bus 4 (PQ) - Solver Bus
+                [{re:0,im:0}, {re:-5,im:15}, {re:0,im:0}, {re:-5,im:15}, {re:15,im:-45}, {re:-5,im:15}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}],
+                // Bus 5 (PQ)
+                [{re:-5,im:15}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:-5,im:15}, {re:15,im:-45}, {re:-5,im:15}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}],
+                // Bus 6 (PQ)
+                [{re:0,im:0}, {re:0,im:0}, {re:-5,im:15}, {re:0,im:0}, {re:0,im:0}, {re:-5,im:15}, {re:15,im:-45}, {re:-5,im:15}, {re:0,im:0}, {re:0,im:0}],
+                // Bus 7 (PQ)
+                [{re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:-5,im:15}, {re:15,im:-45}, {re:-5,im:15}, {re:0,im:0}],
+                // Bus 8 (PQ)
+                [{re:0,im:0}, {re:-5,im:15}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:-5,im:15}, {re:15,im:-45}, {re:-5,im:15}],
+                // Bus 9 (PQ)
+                [{re:-5,im:15}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:-5,im:15}, {re:10,im:-30}]
+            ],
+            buses: [
+                { type:'Slack', V:1.05, delta:0 },
+                { type:'PV', V:1.02, delta:0, Pspec:0.8 },
+                { type:'PQ', V:1.0, delta:0, Pspec:-0.2, Qspec:-0.1 },
+                { type:'PQ', V:1.0, delta:0, Pspec:-0.15, Qspec:-0.08 },
+                { type:'PQ', V:1.0, delta:0, Pspec:-0.3, Qspec:-0.15 }, // Solver Bus
+                { type:'PQ', V:1.0, delta:0, Pspec:-0.25, Qspec:-0.12 },
+                { type:'PQ', V:1.0, delta:0, Pspec:-0.18, Qspec:-0.09 },
+                { type:'PQ', V:1.0, delta:0, Pspec:-0.22, Qspec:-0.11 },
+                { type:'PQ', V:1.0, delta:0, Pspec:-0.28, Qspec:-0.14 },
+                { type:'PQ', V:1.0, delta:0, Pspec:-0.16, Qspec:-0.08 }
+            ],
+            solverBus: 4,  // バス5 (中央の負荷バス) を可視化
+            initialV: 1.05, initialDelta: 0.08
         }
     };
-
-    // ================================================================
-    // 大規模系統生成関数
-    // ================================================================
-    
-    // IEEE 30バスシステムの簡略版
-    function generateIEEE30System() {
-        const nBus = 30;
-        const Ybus = Array(nBus).fill(null).map(() => Array(nBus).fill(null).map(() => ({re: 0, im: 0})));
-        const buses = [];
-        
-        // バス1: Slack bus
-        buses.push({ type: 'Slack', V: 1.06, delta: 0 });
-        
-        // 主要PVバス
-        buses.push({ type: 'PV', V: 1.043, Pspec: 0.4 });  // Bus 2
-        buses.push({ type: 'PV', V: 1.025, Pspec: 0.0 });  // Bus 3
-        buses.push({ type: 'PV', V: 1.01, Pspec: 0.0 });   // Bus 4
-        buses.push({ type: 'PV', V: 1.01, Pspec: 0.0 });   // Bus 5
-        
-        // PQバス (負荷)
-        for (let i = 5; i < nBus; i++) {
-            const loadP = -0.1 - Math.random() * 0.4; // -0.1 to -0.5 MW
-            const loadQ = -0.05 - Math.random() * 0.2; // -0.05 to -0.25 MVAR
-            buses.push({ type: 'PQ', V: 1.0, delta: 0, Pspec: loadP, Qspec: loadQ });
-        }
-        
-        // 軽量な送電線モデル - 主に隣接ノード接続
-        for (let i = 0; i < nBus; i++) {
-            // 隣接ノードとの接続（リング構造）
-            const next = (i + 1) % nBus;
-            const susceptance = 10 + Math.random() * 10; // 10-20
-            Ybus[i][next] = { re: 1, im: susceptance };
-            Ybus[next][i] = { re: 1, im: susceptance };
-            
-            // 少数の追加接続のみ（スパース化）
-            if (Math.random() < 0.3) { // 30%の確率で追加接続
-                const target = Math.floor(Math.random() * nBus);
-                if (target !== i && target !== next) {
-                    const addSusceptance = 5 + Math.random() * 5;
-                    Ybus[i][target] = { re: 0.5, im: addSusceptance };
-                    Ybus[target][i] = { re: 0.5, im: addSusceptance };
-                }
-            }
-        }
-        
-        // 対角要素計算（全接続後に実行）
-        for (let i = 0; i < nBus; i++) {
-            let diagG = 0, diagB = 0;
-            for (let j = 0; j < nBus; j++) {
-                if (i !== j && (Ybus[i][j].re !== 0 || Ybus[i][j].im !== 0)) {
-                    diagG += Ybus[i][j].re;
-                    diagB += Ybus[i][j].im;
-                }
-            }
-            Ybus[i][i] = { re: diagG, im: diagB };
-        }
-        
-        return {
-            name: 'IEEE 30バス簡易系統',
-            Ybus: Ybus,
-            buses: buses,
-            solverBus: 2, // バス3を主要解析対象（安全な選択）
-            initialV: 1.1,
-            initialDelta: 0.1
-        };
-    }
-    
-    // ランダム118バスシステム
-    function generateRandomPowerSystem(nBus = 118) {
-        const Ybus = Array(nBus).fill(null).map(() => Array(nBus).fill(null).map(() => ({re: 0, im: 0})));
-        const buses = [];
-        
-        // バス1: Slack bus
-        buses.push({ type: 'Slack', V: 1.05, delta: 0 });
-        
-        // 発電機バス (PVバス) - 約15%
-        const nGen = Math.floor(nBus * 0.15);
-        for (let i = 1; i < nGen; i++) {
-            const Pgen = 0.2 + Math.random() * 0.8; // 0.2-1.0 MW
-            const V = 1.0 + (Math.random() - 0.5) * 0.1; // 0.95-1.05
-            buses.push({ type: 'PV', V: V, Pspec: Pgen });
-        }
-        
-        // 負荷バス (PQバス) - 残り
-        for (let i = nGen; i < nBus; i++) {
-            const loadP = -0.05 - Math.random() * 0.3; // -0.05 to -0.35 MW
-            const loadQ = -0.02 - Math.random() * 0.15; // -0.02 to -0.17 MVAR
-            buses.push({ type: 'PQ', V: 1.0, delta: 0, Pspec: loadP, Qspec: loadQ });
-        }
-        
-        // 軽量な送電線網生成 - 主にリング + 少数の追加接続
-        for (let i = 0; i < nBus; i++) {
-            // 基本リング構造
-            const next = (i + 1) % nBus;
-            const reactance = 0.1 + Math.random() * 0.2; // 0.1-0.3 pu
-            Ybus[i][next] = { re: 0.02, im: reactance };
-            Ybus[next][i] = { re: 0.02, im: reactance };
-            
-            // 限定的な追加接続（スパース化）
-            if (Math.random() < 0.2) { // 20%の確率
-                const target = (i + 2 + Math.floor(Math.random() * (nBus - 4))) % nBus;
-                if (target !== i && target !== next) {
-                    const addReactance = 0.15 + Math.random() * 0.25;
-                    Ybus[i][target] = { re: 0.01, im: addReactance };
-                    Ybus[target][i] = { re: 0.01, im: addReactance };
-                }
-            }
-        }
-        
-        // 対角要素計算（全接続後に実行）
-        for (let i = 0; i < nBus; i++) {
-            let diagG = 0, diagB = 0;
-            for (let j = 0; j < nBus; j++) {
-                if (i !== j && (Ybus[i][j].re !== 0 || Ybus[i][j].im !== 0)) {
-                    diagG += Ybus[i][j].re;
-                    diagB += Ybus[i][j].im;
-                }
-            }
-            Ybus[i][i] = { re: diagG, im: diagB };
-        }
-        
-        return {
-            name: `${nBus}ノード ランダム系統`,
-            Ybus: Ybus,
-            buses: buses,
-            solverBus: Math.min(2, nBus - 1), // 安全な負荷バス選択
-            initialV: 1.15,
-            initialDelta: 0.15
-        };
-    }
-    
-    // 動的問題取得関数
-    function getDynamicProblem(problemKey) {
-        try {
-            console.log('Getting problem:', problemKey);
-            if (problemKey === '30bus_ieee') {
-                console.log('Generating IEEE 30-bus system...');
-                return generateIEEE30System();
-            } else if (problemKey === '30bus_random') {
-                console.log('Generating 30-bus random system...');
-                return generateRandomPowerSystem(30);
-            } else {
-                console.log('Using predefined problem:', problemKey);
-                return problems[problemKey];
-            }
-        } catch (error) {
-            console.error('Error in getDynamicProblem:', error);
-            // Fallback to simple 2-bus system
-            console.log('Falling back to 2bus_medium');
-            return problems['2bus_medium'];
-        }
-    }
 
     // ================================================================
     // 状態管理
@@ -774,20 +710,10 @@
     function calcMismatch(prob, busIdx, V, delta) {
         const { Pcalc, Qcalc } = calcPQ(prob, busIdx, V, delta);
         const bus = prob.buses[busIdx];
-        
-        if (bus.type === 'PV') {
-            // PVバス: P指定、V指定
-            return {
-                deltaP: bus.Pspec - Pcalc,
-                deltaQ: bus.V - V  // 電圧大きさの誤差
-            };
-        } else {
-            // PQバス: P指定、Q指定
-            return {
-                deltaP: bus.Pspec - Pcalc,
-                deltaQ: bus.Qspec - Qcalc
-            };
-        }
+        return {
+            deltaP: bus.Pspec - Pcalc,
+            deltaQ: bus.Qspec - Qcalc
+        };
     }
 
     // 誤差ノルム
@@ -852,7 +778,7 @@
     // ================================================================
     
     function newtonStep() {
-        const prob = getDynamicProblem(state.problem);
+        const prob = problems[state.problem];
         const busIdx = prob.solverBus;
         const m = calcMismatch(prob, busIdx, state.V, state.delta);
         const J = calcJacobian(prob, busIdx, state.V, state.delta);
@@ -877,7 +803,7 @@
     }
 
     function gaussSeidelStep() {
-        const prob = getDynamicProblem(state.problem);
+        const prob = problems[state.problem];
         const busIdx = prob.solverBus;
         const Ybus = prob.Ybus;
         const bus = prob.buses[busIdx];
@@ -945,7 +871,7 @@
     }
 
     function gradientStep() {
-        const prob = getDynamicProblem(state.problem);
+        const prob = problems[state.problem];
         const busIdx = prob.solverBus;
         const currentError = calcError(prob, busIdx, state.V, state.delta);
         
@@ -1002,7 +928,7 @@
         state.V = dc.V;
         state.delta = dc.delta;
         
-        const prob = getDynamicProblem(state.problem);
+        const prob = problems[state.problem];
         const error = calcError(prob, prob.solverBus, state.V, state.delta);
         
         log(`DC潮流法の結果:`);
@@ -1043,13 +969,10 @@
     }
 
     function reset() {
-        try {
-            console.log('Reset called for problem:', state.problem);
-            state.running = false;
-            state.iteration = 0;
-            
-            const prob = getDynamicProblem(state.problem);
-            console.log('Problem loaded:', prob.name, 'buses:', prob.buses.length);
+        state.running = false;
+        state.iteration = 0;
+        
+        const prob = problems[state.problem];
         state.V = prob.initialV;
         state.delta = prob.initialDelta;
         state.trajectory = [{ V: state.V, delta: state.delta }];
@@ -1082,10 +1005,6 @@
         
         updateDisplay();
         drawAll();
-        console.log('Reset completed successfully');
-        } catch (error) {
-            console.error('Reset error:', error);
-        }
     }
 
     function updateDisplay() {
@@ -1187,7 +1106,7 @@
     // ================================================================
     
     function getViewRange() {
-        const prob = getDynamicProblem(state.problem);
+        const prob = problems[state.problem];
         let allV = [state.trueSolution?.V || 1, state.dcSolution?.V || 1, prob.initialV];
         let allD = [state.trueSolution?.delta || 0, state.dcSolution?.delta || 0, prob.initialDelta];
         
@@ -1303,7 +1222,7 @@
         const w = canvas.width, h = canvas.height;
 
         const range = getViewRange();
-        const prob = getDynamicProblem(state.problem);
+        const prob = problems[state.problem];
         const busIdx = prob.solverBus;
         const res = 40;
         
@@ -1469,11 +1388,9 @@
         ctx.fillRect(0, 0, w, h);
 
         const range = getViewRange();
-        const prob = getDynamicProblem(state.problem);
+        const prob = problems[state.problem];
         const busIdx = prob.solverBus;
-        
-        // 大規模系統では計算負荷軽減のためグリッドサイズを調整
-        const gridSize = prob.buses && prob.buses.length > 10 ? 6 : 10;
+        const gridSize = 10;
         const cellW = w / gridSize, cellH = h / gridSize;
 
         for (let i = 1; i < gridSize; i++) {
@@ -1534,36 +1451,27 @@
     // 初期化
     // ================================================================
     document.addEventListener('DOMContentLoaded', () => {
-        try {
-            console.warn('⚠️ v6は不安定です。v7の使用を強く推奨します: power_flow_intuitive_v7.html');
-            console.log('Initializing power flow intuitive v6...');
-            
-            document.getElementById('algoSelect').addEventListener('change', e => {
-                state.algorithm = e.target.value;
-                reset();
-            });
-            document.getElementById('problemSelect').addEventListener('change', e => {
-                state.problem = e.target.value;
-                reset();
-            });
-            document.getElementById('toleranceInput').addEventListener('change', e => {
-                state.tolerance = parseFloat(e.target.value);
-                reset();
-            });
-            document.getElementById('speedSlider').addEventListener('input', e => {
-                state.speed = parseFloat(e.target.value);
-                document.getElementById('speedValue').textContent = state.speed.toFixed(1) + 'x';
-            });
-            document.getElementById('runBtn').addEventListener('click', run);
-            document.getElementById('stepBtn').addEventListener('click', step);
-            document.getElementById('resetBtn').addEventListener('click', reset);
-
-            console.log('Event listeners attached, calling initial reset...');
+        document.getElementById('algoSelect').addEventListener('change', e => {
+            state.algorithm = e.target.value;
             reset();
-            console.log('Initialization complete');
-        } catch (error) {
-            console.error('Initialization error:', error);
-        }
+        });
+        document.getElementById('problemSelect').addEventListener('change', e => {
+            state.problem = e.target.value;
+            reset();
+        });
+        document.getElementById('toleranceInput').addEventListener('change', e => {
+            state.tolerance = parseFloat(e.target.value);
+            reset();
+        });
+        document.getElementById('speedSlider').addEventListener('input', e => {
+            state.speed = parseFloat(e.target.value);
+            document.getElementById('speedValue').textContent = state.speed.toFixed(1) + 'x';
+        });
+        document.getElementById('runBtn').addEventListener('click', run);
+        document.getElementById('stepBtn').addEventListener('click', step);
+        document.getElementById('resetBtn').addEventListener('click', reset);
+
+        reset();
     });
 
     window.addEventListener('resize', drawAll);
