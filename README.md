@@ -58,8 +58,8 @@ open power_flow_v5.html
 
 ### 推奨学習順序
 
-1. **入門** [`power_flow_intuitive.html`](https://lutelute.github.io/power_flow_viz/power_flow_intuitive.html) - 基本概念の理解
-2. **基礎** [`power_flow_process_visualizer.html`](https://lutelute.github.io/power_flow_viz/power_flow_process_visualizer.html) - アルゴリズム詳細  
+1. **入門** [`power_flow_intuitive_v6.html`](https://lutelute.github.io/power_flow_viz/power_flow_intuitive_v6.html) - 基本概念の理解（大規模系統対応）
+2. **基礎** [`power_flow_process_visualizer.html`](https://lutelute.github.io/power_flow_viz/power_flow_process_visualizer.html) - アルゴリズム詳細（修正版）  
 3. **応用** [`power_flow_compare.html`](https://lutelute.github.io/power_flow_viz/power_flow_compare.html) - 手法間比較
 4. **発展** [`power_flow_v5.html`](https://lutelute.github.io/power_flow_viz/power_flow_v5.html) - 高度な手法群
 5. **実務** [`power_flow_matpower_v2.html`](https://lutelute.github.io/power_flow_viz/power_flow_matpower_v2.html) - 実用的実装
@@ -301,13 +301,25 @@ class PowerFlowSolver {
 ## 🔄 更新履歴
 
 ### 直感的理解ツール バージョン履歴
+- **v6.0** (2024-12-31): **大規模系統対応・PVバス修正版**
+  - IEEE 30バス・118バスランダム系統追加
+  - PVバスサポート修正（電圧制約の正しい処理）
+  - 動的系統生成機能実装
 - **v5.0** (2024-12-31): 問題修正・UI改善、数値安定性向上
 - **v4.0** (2024-12-31): 最新機能統合版
 - **v3.0** (2024-12-31): 遠い初期点設定、大規模系統対応
 - **v2.0** (2024-12-30): 精度・収束可視化改善
 - **v1.0** (2024-12-30): 初版リリース
 
+### 計算過程可視化ツール
+- **v2.0** (2024-12-31): **Newton-Raphson収束問題修正版**
+  - 収束アルゴリズムの根本的修正
+  - PVバス制約の適切な処理
+  - 過度なダンピングの除去
+- **v1.0** (2024-12-30): 初版リリース
+
 ### プロジェクト全体
+- **v1.3** (2024-12-31): 大規模系統対応・計算過程修正
 - **v1.2** (2024-12-31): 直感的理解ツールv5対応、問題修正
 - **v1.1** (2024-12-30): 技術文書充実、GitHub Pages対応
 - **v1.0** (2024-12-30): 初回リリース
@@ -320,4 +332,4 @@ class PowerFlowSolver {
 
 **開発者**: [プロジェクト作成者]  
 **更新日**: 2024年12月31日  
-**バージョン**: 1.2.0
+**バージョン**: 1.3.0

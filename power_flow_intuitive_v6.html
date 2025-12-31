@@ -224,7 +224,7 @@
                     <option value="3bus_unbalanced">3ノード(不平衡負荷) - 困難</option>
                     <option value="3bus">3ノード系統 - 標準</option>
                     <option value="30bus_ieee">30ノード系統(IEEE標準) - 大規模</option>
-                    <option value="118bus_random">118ノード系統(ランダム生成) - 超大規模</option>
+                    <option value="30bus_random">30ノード系統(ランダム生成) - 中規模</option>
                 </select>
             </div>
             <div class="control-group">
@@ -437,7 +437,14 @@
                 }
             }
             // 対角要素（自己アドミタンス）
-            Ybus[i][i] = { re: totalB * 0.1, im: -totalB };
+            let diagG = 0, diagB = 0;
+            for (let j = 0; j < nBus; j++) {
+                if (i !== j && (Ybus[i][j].re !== 0 || Ybus[i][j].im !== 0)) {
+                    diagG += Ybus[i][j].re;
+                    diagB += Ybus[i][j].im;
+                }
+            }
+            Ybus[i][i] = { re: diagG, im: diagB };
         }
         
         return {
@@ -516,14 +523,15 @@
                 totalB += reactance;
             }
             
-            // 対角要素計算
-            let diagB = 0;
+            // 対角要素計算 (自己アドミタンス = 接続されたブランチの合計)
+            let diagG = 0, diagB = 0;
             for (let j = 0; j < nBus; j++) {
-                if (i !== j) {
+                if (i !== j && (Ybus[i][j].re !== 0 || Ybus[i][j].im !== 0)) {
+                    diagG += Ybus[i][j].re;
                     diagB += Ybus[i][j].im;
                 }
             }
-            Ybus[i][i] = { re: diagB * 0.05, im: -diagB };
+            Ybus[i][i] = { re: diagG, im: diagB };
         }
         
         return {
@@ -538,12 +546,23 @@
     
     // 動的問題取得関数
     function getDynamicProblem(problemKey) {
-        if (problemKey === '30bus_ieee') {
-            return generateIEEE30System();
-        } else if (problemKey === '118bus_random') {
-            return generateRandomPowerSystem(118);
-        } else {
-            return problems[problemKey];
+        try {
+            console.log('Getting problem:', problemKey);
+            if (problemKey === '30bus_ieee') {
+                console.log('Generating IEEE 30-bus system...');
+                return generateIEEE30System();
+            } else if (problemKey === '30bus_random') {
+                console.log('Generating 30-bus random system...');
+                return generateRandomPowerSystem(30);
+            } else {
+                console.log('Using predefined problem:', problemKey);
+                return problems[problemKey];
+            }
+        } catch (error) {
+            console.error('Error in getDynamicProblem:', error);
+            // Fallback to simple 2-bus system
+            console.log('Falling back to 2bus_medium');
+            return problems['2bus_medium'];
         }
     }
 
@@ -1045,10 +1064,13 @@
     }
 
     function reset() {
-        state.running = false;
-        state.iteration = 0;
-        
-        const prob = getDynamicProblem(state.problem);
+        try {
+            console.log('Reset called for problem:', state.problem);
+            state.running = false;
+            state.iteration = 0;
+            
+            const prob = getDynamicProblem(state.problem);
+            console.log('Problem loaded:', prob.name, 'buses:', prob.buses.length);
         state.V = prob.initialV;
         state.delta = prob.initialDelta;
         state.trajectory = [{ V: state.V, delta: state.delta }];
@@ -1081,6 +1103,10 @@
         
         updateDisplay();
         drawAll();
+        console.log('Reset completed successfully');
+        } catch (error) {
+            console.error('Reset error:', error);
+        }
     }
 
     function updateDisplay() {
@@ -1527,27 +1553,35 @@
     // 初期化
     // ================================================================
     document.addEventListener('DOMContentLoaded', () => {
-        document.getElementById('algoSelect').addEventListener('change', e => {
-            state.algorithm = e.target.value;
-            reset();
-        });
-        document.getElementById('problemSelect').addEventListener('change', e => {
-            state.problem = e.target.value;
-            reset();
-        });
-        document.getElementById('toleranceInput').addEventListener('change', e => {
-            state.tolerance = parseFloat(e.target.value);
-            reset();
-        });
-        document.getElementById('speedSlider').addEventListener('input', e => {
-            state.speed = parseFloat(e.target.value);
-            document.getElementById('speedValue').textContent = state.speed.toFixed(1) + 'x';
-        });
-        document.getElementById('runBtn').addEventListener('click', run);
-        document.getElementById('stepBtn').addEventListener('click', step);
-        document.getElementById('resetBtn').addEventListener('click', reset);
+        try {
+            console.log('Initializing power flow intuitive v6...');
+            
+            document.getElementById('algoSelect').addEventListener('change', e => {
+                state.algorithm = e.target.value;
+                reset();
+            });
+            document.getElementById('problemSelect').addEventListener('change', e => {
+                state.problem = e.target.value;
+                reset();
+            });
+            document.getElementById('toleranceInput').addEventListener('change', e => {
+                state.tolerance = parseFloat(e.target.value);
+                reset();
+            });
+            document.getElementById('speedSlider').addEventListener('input', e => {
+                state.speed = parseFloat(e.target.value);
+                document.getElementById('speedValue').textContent = state.speed.toFixed(1) + 'x';
+            });
+            document.getElementById('runBtn').addEventListener('click', run);
+            document.getElementById('stepBtn').addEventListener('click', step);
+            document.getElementById('resetBtn').addEventListener('click', reset);
 
-        reset();
+            console.log('Event listeners attached, calling initial reset...');
+            reset();
+            console.log('Initialization complete');
+        } catch (error) {
+            console.error('Initialization error:', error);
+        }
     });
 
     window.addEventListener('resize', drawAll);
