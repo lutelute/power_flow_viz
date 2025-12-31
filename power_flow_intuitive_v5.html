@@ -223,6 +223,8 @@
                     <option value="2bus_voltage_collapse">2ノード(電圧崩壊直前) - 非常に困難</option>
                     <option value="3bus_unbalanced">3ノード(不平衡負荷) - 困難</option>
                     <option value="3bus">3ノード系統 - 標準</option>
+                    <option value="5bus_ieee">5ノード(IEEE) - 中規模</option>
+                    <option value="9bus_ieee">9ノード(IEEE) - 大規模</option>
                 </select>
             </div>
             <div class="control-group">
@@ -387,6 +389,54 @@
             ],
             solverBus: 1,  // バス2を主に可視化
             initialV: 1.05, initialDelta: 0.05
+        },
+        '5bus_ieee': {
+            name: '5ノード(IEEE) - 中規模系統',
+            // IEEE 5バス修正版
+            Ybus: [
+                [{re:12.5,im:-37.5}, {re:-5,im:15}, {re:-2.5,im:7.5}, {re:-5,im:15}, {re:0,im:0}],
+                [{re:-5,im:15}, {re:8.33,im:-25}, {re:-3.33,im:10}, {re:0,im:0}, {re:0,im:0}],
+                [{re:-2.5,im:7.5}, {re:-3.33,im:10}, {re:12.5,im:-37.5}, {re:-3.33,im:10}, {re:-3.33,im:10}],
+                [{re:-5,im:15}, {re:0,im:0}, {re:-3.33,im:10}, {re:11.66,im:-35}, {re:-3.33,im:10}],
+                [{re:0,im:0}, {re:0,im:0}, {re:-3.33,im:10}, {re:-3.33,im:10}, {re:6.66,im:-20}]
+            ],
+            buses: [
+                { type:'Slack', V:1.06, delta:0 },
+                { type:'PV', V:1.00, delta:0, Pspec:0.4 },
+                { type:'PQ', V:1.0, delta:0, Pspec:-0.6, Qspec:-0.3 },
+                { type:'PQ', V:1.0, delta:0, Pspec:-0.4, Qspec:-0.2 },
+                { type:'PQ', V:1.0, delta:0, Pspec:-0.3, Qspec:-0.15 }
+            ],
+            solverBus: 2,  // バス3 (主負荷) を可視化
+            initialV: 1.15, initialDelta: 0.12
+        },
+        '9bus_ieee': {
+            name: '9ノード(IEEE) - 大規模系統',
+            // IEEE 9バス系統の簡略版 (WSCC 3-machine 9-bus)
+            Ybus: [
+                [{re:10.4,im:-31.2}, {re:-4.2,im:12.6}, {re:0,im:0}, {re:-6.2,im:18.6}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}],
+                [{re:-4.2,im:12.6}, {re:8.7,im:-26.1}, {re:-4.5,im:13.5}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}],
+                [{re:0,im:0}, {re:-4.5,im:13.5}, {re:9.3,im:-27.9}, {re:0,im:0}, {re:0,im:0}, {re:-4.8,im:14.4}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}],
+                [{re:-6.2,im:18.6}, {re:0,im:0}, {re:0,im:0}, {re:11.5,im:-34.5}, {re:-2.8,im:8.4}, {re:0,im:0}, {re:-2.5,im:7.5}, {re:0,im:0}, {re:0,im:0}],
+                [{re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:-2.8,im:8.4}, {re:7.6,im:-22.8}, {re:-4.8,im:14.4}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}],
+                [{re:0,im:0}, {re:0,im:0}, {re:-4.8,im:14.4}, {re:0,im:0}, {re:-4.8,im:14.4}, {re:12.1,im:-36.3}, {re:0,im:0}, {re:0,im:0}, {re:-2.5,im:7.5}],
+                [{re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:-2.5,im:7.5}, {re:0,im:0}, {re:0,im:0}, {re:5.8,im:-17.4}, {re:-3.3,im:9.9}, {re:0,im:0}],
+                [{re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:-3.3,im:9.9}, {re:6.1,im:-18.3}, {re:-2.8,im:8.4}],
+                [{re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:0,im:0}, {re:-2.5,im:7.5}, {re:0,im:0}, {re:-2.8,im:8.4}, {re:5.3,im:-15.9}]
+            ],
+            buses: [
+                { type:'Slack', V:1.04, delta:0 },
+                { type:'PV', V:1.025, delta:0, Pspec:1.63 },
+                { type:'PV', V:1.025, delta:0, Pspec:0.85 },
+                { type:'PQ', V:1.0, delta:0, Pspec:0, Qspec:0 },
+                { type:'PQ', V:1.0, delta:0, Pspec:-1.25, Qspec:-0.5 },
+                { type:'PQ', V:1.0, delta:0, Pspec:-0.9, Qspec:-0.3 },
+                { type:'PQ', V:1.0, delta:0, Pspec:0, Qspec:0 },
+                { type:'PQ', V:1.0, delta:0, Pspec:-1.0, Qspec:-0.35 },
+                { type:'PQ', V:1.0, delta:0, Pspec:-0.125, Qspec:-0.05 }
+            ],
+            solverBus: 4,  // バス5 (最大負荷) を可視化
+            initialV: 1.2, initialDelta: 0.15
         }
     };
 

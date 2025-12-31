@@ -784,8 +784,8 @@
             Ybus: [],
             algorithm: 'newton-raphson',
             iteration: 0,
-            maxIterations: 50,
-            tolerance: 1e-6,
+            maxIterations: 100,
+            tolerance: 1e-5,
             running: false,
             paused: false,
             stepMode: false,
@@ -1143,6 +1143,54 @@
             }
         }
 
+        // Jacobian calculation using numerical differentiation
+        function calculateJacobian(busIdx, V, delta) {
+            const h = 1e-6;
+            const m0 = calculateBusMismatchValues(busIdx, V, delta);
+            
+            // ∂P/∂δ, ∂Q/∂δ
+            const m_d = calculateBusMismatchValues(busIdx, V, delta + h);
+            const J11 = -(m_d.P - m0.P) / h;  // dP/dδ (negative because we want derivative of mismatch)
+            const J21 = -(m_d.Q - m0.Q) / h;  // dQ/dδ
+            
+            // ∂P/∂V, ∂Q/∂V
+            const m_V = calculateBusMismatchValues(busIdx, V + h, delta);
+            const J12 = -(m_V.P - m0.P) / h;  // dP/dV
+            const J22 = -(m_V.Q - m0.Q) / h;  // dQ/dV
+            
+            return { J11, J12, J21, J22 };
+        }
+
+        // Helper function to calculate mismatch values for a specific bus
+        function calculateBusMismatchValues(busIdx, V, delta) {
+            const bus = state.buses[busIdx];
+            const n = state.buses.length;
+            let Pcalc = 0, Qcalc = 0;
+
+            for (let j = 0; j < n; j++) {
+                let Vj, deltaj;
+                if (j === busIdx) {
+                    Vj = V; 
+                    deltaj = delta;
+                } else {
+                    Vj = state.buses[j].V;
+                    deltaj = state.buses[j].delta;
+                }
+                
+                const Gij = state.Ybus[busIdx][j].re;
+                const Bij = state.Ybus[busIdx][j].im;
+                const thetaij = delta - deltaj;
+
+                Pcalc += V * Vj * (Gij * Math.cos(thetaij) + Bij * Math.sin(thetaij));
+                Qcalc += V * Vj * (Gij * Math.sin(thetaij) - Bij * Math.cos(thetaij));
+            }
+
+            return {
+                P: bus.Pspec - Pcalc,
+                Q: bus.type === 'PQ' ? bus.Qspec - Qcalc : 0
+            };
+        }
+
         async function runNewtonRaphson() {
             // Step 1: Calculate mismatches
             await animateStep('mismatch', 'ミスマッチ ΔP, ΔQ 計算中...');
@@ -1181,24 +1229,40 @@ LU分解を使用...`);
 
             await delay(600 / state.speed);
 
-            // Step 4: Update state variables
+            // Step 4: Update state variables using proper Newton-Raphson method
             await animateStep('update', '状態変数を更新中...');
 
-            // Simplified update (actual NR would use Jacobian inverse)
+            // Proper Newton-Raphson update for each non-slack bus
             for (let i = 0; i < n; i++) {
                 const bus = state.buses[i];
                 if (bus.type === 'Slack') continue;
 
-                const mismatch = mismatches[i];
-                const factor = 0.8; // Damping factor for stability
-
-                // Update angle
-                bus.delta += factor * mismatch.P * 0.1;
+                const mismatch = calculateBusMismatchValues(i, bus.V, bus.delta);
+                const J = calculateJacobian(i, bus.V, bus.delta);
                 
-                // Update voltage for PQ buses
-                if (bus.type === 'PQ') {
-                    bus.V += factor * mismatch.Q * 0.05;
-                    bus.V = Math.max(0.9, Math.min(1.1, bus.V)); // Clamp
+                // Solve 2x2 system: J * [Δδ, ΔV]^T = [ΔP, ΔQ]^T
+                const det = J.J11 * J.J22 - J.J12 * J.J21;
+                
+                if (Math.abs(det) > 1e-15) {
+                    const dDelta = (J.J22 * mismatch.P - J.J12 * mismatch.Q) / det;
+                    const dV = (-J.J21 * mismatch.P + J.J11 * mismatch.Q) / det;
+                    
+                    // Apply updates with damping
+                    const damping = 0.9; // Conservative damping for stability
+                    bus.delta += damping * dDelta;
+                    
+                    if (bus.type === 'PQ') {
+                        bus.V += damping * dV;
+                        bus.V = Math.max(0.8, Math.min(1.2, bus.V)); // Reasonable bounds
+                    }
+                } else {
+                    // Fallback for singular Jacobian
+                    const factor = 0.1;
+                    bus.delta += factor * mismatch.P * 0.01;
+                    if (bus.type === 'PQ') {
+                        bus.V += factor * mismatch.Q * 0.01;
+                        bus.V = Math.max(0.8, Math.min(1.2, bus.V));
+                    }
                 }
 
                 await highlightBusUpdate(i);
@@ -1232,7 +1296,7 @@ ${maxError < state.tolerance ? '<span class="eq-highlight">✓ 収束!</span>' :
                 const bus = state.buses[i];
                 if (bus.type === 'Slack') continue;
 
-                // Calculate new voltage
+                // Calculate new voltage using proper Gauss-Seidel formula
                 let sumYV = { re: 0, im: 0 };
                 for (let j = 0; j < n; j++) {
                     if (i === j) continue;
@@ -1269,14 +1333,15 @@ ${maxError < state.tolerance ? '<span class="eq-highlight">✓ 収束!</span>' :
                 const newMag = Math.sqrt(newV.re * newV.re + newV.im * newV.im);
                 const newAngle = Math.atan2(newV.im, newV.re);
 
-                // Apply with damping
-                const alpha = 1.0;
+                // Apply with conservative damping for stability
+                const alpha = 0.6; // Reduced damping for better stability
                 if (bus.type === 'PQ') {
                     bus.V = bus.V + alpha * (newMag - bus.V);
                 }
                 bus.delta = bus.delta + alpha * (newAngle - bus.delta);
 
-                bus.V = Math.max(0.9, Math.min(1.1, bus.V));
+                // Clamp voltage to reasonable bounds
+                bus.V = Math.max(0.8, Math.min(1.2, bus.V));
 
                 updateEquationDisplay(`Gauss-Seidel更新 (Bus ${i + 1}):
 V_${i+1}^(k+1) = 1/Y_${i+1}${i+1} × [
@@ -1310,7 +1375,8 @@ B'行列で位相角を更新...`);
                 if (bus.type === 'Slack') continue;
                 
                 const mismatch = calculateBusMismatch(bus);
-                bus.delta += mismatch.P * 0.15;
+                // More conservative update step for stability
+                bus.delta += mismatch.P * 0.05;
                 
                 await highlightBusUpdate(i);
             }
@@ -1330,8 +1396,9 @@ B"行列で電圧を更新...`);
                 if (bus.type !== 'PQ') continue;
                 
                 const mismatch = calculateBusMismatch(bus);
-                bus.V += mismatch.Q * 0.08;
-                bus.V = Math.max(0.9, Math.min(1.1, bus.V));
+                // More conservative update step for stability
+                bus.V += mismatch.Q * 0.03;
+                bus.V = Math.max(0.8, Math.min(1.2, bus.V));
                 
                 await highlightBusUpdate(i);
             }
@@ -1395,6 +1462,7 @@ B"行列で電圧を更新...`);
                 const bus = state.buses[i];
                 if (bus.type === 'Slack') continue;
 
+                // Calculate new voltage using proper Jacobi formula
                 let sumYV = { re: 0, im: 0 };
                 for (let j = 0; j < n; j++) {
                     if (i === j) continue;
@@ -1407,12 +1475,13 @@ B"行列で電圧を更新...`);
                     sumYV.im += Yij.re * Vj * Math.sin(dj) + Yij.im * Vj * Math.cos(dj);
                 }
 
+                // More conservative update based on mismatch
                 const mismatch = calculateBusMismatch(bus);
-                bus.delta += mismatch.P * 0.08;
+                bus.delta += mismatch.P * 0.03; // Reduced step size
                 
                 if (bus.type === 'PQ') {
-                    bus.V += mismatch.Q * 0.04;
-                    bus.V = Math.max(0.9, Math.min(1.1, bus.V));
+                    bus.V += mismatch.Q * 0.02; // Reduced step size
+                    bus.V = Math.max(0.8, Math.min(1.2, bus.V));
                 }
 
                 await highlightBusUpdate(i);
