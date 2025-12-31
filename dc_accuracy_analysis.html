@@ -129,9 +129,98 @@
         .metric.good .metric-value { color: var(--accent-green); }
         .metric.warn .metric-value { color: var(--accent-orange); }
         .metric.bad .metric-value { color: var(--accent-red); }
+
+        /* Navigation Bar */
+        .nav-bar {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 8px 0;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .nav-container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: var(--text-primary);
+        }
+
+        .nav-logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+
+        .nav-title {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .nav-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.85rem;
+            padding: 6px 12px;
+            border-radius: 6px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .nav-link:hover {
+            background: var(--bg-surface);
+            color: var(--accent-cyan);
+        }
+
+        .nav-link.primary {
+            background: var(--accent-cyan);
+            color: var(--bg-dark);
+            font-weight: 500;
+        }
+
+        .nav-link.primary:hover {
+            background: var(--accent-green);
+        }
     </style>
 </head>
 <body>
+    <!-- Navigation Bar -->
+    <nav class="nav-bar">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">
+                <div class="nav-logo-icon">⚡</div>
+                <span class="nav-title">Power Flow Visualization</span>
+            </a>
+            <div class="nav-links">
+                <a href="index.html" class="nav-link primary">🏠 ダッシュボード</a>
+                <a href="https://github.com/lutelute/power_flow_viz" class="nav-link" target="_blank">📁 GitHub</a>
+            </div>
+        </div>
+    </nav>
     <div class="container">
         <h1>⚡ 潮流計算 DC法精度検証・無効電力分析</h1>
         
