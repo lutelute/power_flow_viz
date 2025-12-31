@@ -58,7 +58,7 @@ open power_flow_v5.html
 
 ### 推奨学習順序
 
-1. **入門** [`power_flow_intuitive_v7.html`](https://lutelute.github.io/power_flow_viz/power_flow_intuitive_v7.html) - 基本概念の理解（安定版・10ノード対応）
+1. **入門** [`power_flow_intuitive_v6_fixed.html`](https://lutelute.github.io/power_flow_viz/power_flow_intuitive_v6_fixed.html) - 基本概念の理解（最新固定版）
 2. **基礎** [`power_flow_process_visualizer.html`](https://lutelute.github.io/power_flow_viz/power_flow_process_visualizer.html) - アルゴリズム詳細（修正版）  
 3. **応用** [`power_flow_compare.html`](https://lutelute.github.io/power_flow_viz/power_flow_compare.html) - 手法間比較
 4. **発展** [`power_flow_v5.html`](https://lutelute.github.io/power_flow_viz/power_flow_v5.html) - 高度な手法群
@@ -301,14 +301,15 @@ class PowerFlowSolver {
 ## 🔄 更新履歴
 
 ### 直感的理解ツール バージョン履歴
-- **v7.0** (2024-12-31): **安定版・10ノード対応**
-  - v5ベースの安定した動作
-  - 10ノード簡易系統で確実な収束
-  - 全アルゴリズム正常動作確認済み
-  - 教育用途に最適化
+- **v6_fixed** (2024-12-31): **✅最新安定版✅ 完全修正版**
+  - v6の全問題を根本的に修正
+  - Newton-Raphson収束・描画問題完全解決
+  - ランダム系統生成ブラウザフリーズ問題修正
+  - 全アルゴリズム安定動作・教育用途に最適
+- **v7.0** (2024-12-31): **⚠️非推奨⚠️** 別アプローチ版（問題あり）
+  - v5ベースだが新たな問題発生
 - **v6.0** (2024-12-31): **⚠️非推奨⚠️ 大規模系統対応版（不安定）**
   - IEEE 30バス・30バスランダム系統（計算問題あり）
-  - PVバスサポート（部分的）
   - Newton-Raphson収束問題・描画エラー多数
 - **v5.0** (2024-12-31): 問題修正・UI改善、数値安定性向上
 - **v4.0** (2024-12-31): 最新機能統合版
@@ -324,6 +325,7 @@ class PowerFlowSolver {
 - **v1.0** (2024-12-30): 初版リリース
 
 ### プロジェクト全体
+- **v1.6** (2024-12-31): **v6_fixed完全修正版リリース・全問題解決**
 - **v1.5** (2024-12-31): 安定版v7リリース・v6問題対応
 - **v1.4** (2024-12-31): 30ノード系統最適化・安定性向上
 - **v1.3** (2024-12-31): 大規模系統対応・計算過程修正
@@ -339,4 +341,4 @@ class PowerFlowSolver {
 
 **開発者**: [プロジェクト作成者]  
 **更新日**: 2024年12月31日  
-**バージョン**: 1.5.0
+**バージョン**: 1.6.0

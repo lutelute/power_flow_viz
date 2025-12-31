@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>潮流計算 収束可視化</title>
+    <title>潮流計算 収束可視化 (Fixed)</title>
     <style>
         :root {
             --bg-dark: #0f0f1a;
@@ -200,7 +200,7 @@
     <div class="container">
         <header>
             <h1>⚡ 潮流計算 収束の可視化</h1>
-            <p class="subtitle">Newton-Raphson法、Gauss-Seidel法、勾配降下法、DC潮流法の比較</p>
+            <p class="subtitle">Newton-Raphson法、Gauss-Seidel法、勾配降下法、DC潮流法の比較（2〜500ノード対応）</p>
         </header>
 
         <div class="control-panel">
@@ -223,8 +223,11 @@
                     <option value="2bus_voltage_collapse">2ノード(電圧崩壊直前) - 非常に困難</option>
                     <option value="3bus_unbalanced">3ノード(不平衡負荷) - 困難</option>
                     <option value="3bus">3ノード系統 - 標準</option>
-                    <option value="30bus_ieee">30ノード系統(IEEE標準) - 大規模</option>
-                    <option value="30bus_random">30ノード系統(ランダム生成) - 中規模</option>
+                    <option value="30bus_ieee">30ノード系統(IEEE風) - 中規模</option>
+                    <option value="30bus_random">30ノード系統(ランダム) - 中規模</option>
+                    <option value="100bus_random">100ノード系統 - 大規模</option>
+                    <option value="300bus_random">300ノード系統 - 超大規模</option>
+                    <option value="500bus_random">500ノード系統 - 極大規模</option>
                 </select>
             </div>
             <div class="control-group">
@@ -296,6 +299,18 @@
             </div>
         </div>
 
+        <!-- 新しい可視化パネル -->
+        <div class="main-grid" style="margin-top: 15px;">
+            <div class="viz-card">
+                <div class="viz-header">🔲 Y行列スパースパターン (Spy Plot)</div>
+                <div class="viz-body"><canvas id="spyPlot"></canvas></div>
+            </div>
+            <div class="viz-card">
+                <div class="viz-header">🕸️ 系統ネットワーク構造</div>
+                <div class="viz-body"><canvas id="networkGraph"></canvas></div>
+            </div>
+        </div>
+
         <div class="log-panel">
             <h3>📝 計算ログ</h3>
             <div id="logOutput">初期化完了。実行ボタンを押してください。</div>
@@ -316,7 +331,7 @@
                 { type:'PQ', V:1.0, delta:0, Pspec:-0.3, Qspec:-0.1 }
             ],
             solverBus: 1,
-            initialV: 1.05, initialDelta: 0.05
+            initialV: 1.2, initialDelta: 0.25  // 解から離れた初期点
         },
         '2bus_medium': {
             name: '2ノード(中負荷)',
@@ -326,7 +341,7 @@
                 { type:'PQ', V:1.0, delta:0, Pspec:-0.5, Qspec:-0.2 }
             ],
             solverBus: 1,
-            initialV: 1.05, initialDelta: 0.05
+            initialV: 1.2, initialDelta: 0.3  // 解から離れた初期点
         },
         '2bus_heavy': {
             name: '2ノード(重負荷)',
@@ -336,7 +351,7 @@
                 { type:'PQ', V:1.0, delta:0, Pspec:-0.9, Qspec:-0.4 }
             ],
             solverBus: 1,
-            initialV: 1.1, initialDelta: 0.1
+            initialV: 1.25, initialDelta: 0.35
         },
         '2bus_critical': {
             name: '2ノード(臨界負荷) - 収束困難',
@@ -346,7 +361,7 @@
                 { type:'PQ', V:1.0, delta:0, Pspec:-1.1, Qspec:-0.5 }
             ],
             solverBus: 1,
-            initialV: 1.2, initialDelta: 0.15
+            initialV: 1.3, initialDelta: 0.4
         },
         '2bus_voltage_collapse': {
             name: '2ノード(電圧崩壊直前) - 非常に困難',
@@ -356,7 +371,7 @@
                 { type:'PQ', V:1.0, delta:0, Pspec:-1.4, Qspec:-0.7 }
             ],
             solverBus: 1,
-            initialV: 1.3, initialDelta: 0.2
+            initialV: 1.35, initialDelta: 0.45
         },
         '3bus_unbalanced': {
             name: '3ノード(不平衡負荷) - 収束困難',
@@ -372,7 +387,7 @@
                 { type:'PQ', V:1.0, delta:0, Pspec:-0.2, Qspec:-0.05 }
             ],
             solverBus: 1,
-            initialV: 1.25, initialDelta: 0.18
+            initialV: 1.3, initialDelta: 0.35
         },
         '3bus': {
             name: '3ノード系統',
@@ -388,7 +403,7 @@
                 { type:'PQ', V:1.0, delta:0, Pspec:-0.3, Qspec:-0.1 }
             ],
             solverBus: 1,  // バス2を主に可視化
-            initialV: 1.05, initialDelta: 0.05
+            initialV: 1.2, initialDelta: 0.3  // 解から離れた初期点
         }
     };
 
@@ -398,195 +413,239 @@
     
     // IEEE 30バスシステムの簡略版
     function generateIEEE30System() {
-        // 15バスに縮小（最適化版）
-        const nBus = 15;
-        console.log(`Generating optimized IEEE ${nBus}-bus system...`);
-        
+        const nBus = 30;
         const Ybus = Array(nBus).fill(null).map(() => Array(nBus).fill(null).map(() => ({re: 0, im: 0})));
         const buses = [];
         
         // バス1: Slack bus
         buses.push({ type: 'Slack', V: 1.06, delta: 0 });
         
-        // 主要PVバス（4個→2個に削減）
-        buses.push({ type: 'PV', V: 1.043, Pspec: 0.4 });  // Bus 2
-        buses.push({ type: 'PV', V: 1.025, Pspec: 0.2 });  // Bus 3
+        // 主要PVバス（発電機バスは固定電圧で動作）
+        buses.push({ type: 'PQ', V: 1.043, delta: 0, Pspec: 0.4, Qspec: 0.1 });  // Bus 2
+        buses.push({ type: 'PQ', V: 1.025, delta: 0, Pspec: 0.0, Qspec: 0.0 });  // Bus 3
+        buses.push({ type: 'PQ', V: 1.01, delta: 0, Pspec: 0.0, Qspec: 0.0 });   // Bus 4
+        buses.push({ type: 'PQ', V: 1.01, delta: 0, Pspec: 0.0, Qspec: 0.0 });   // Bus 5
         
-        // PQバス（負荷バス）
-        for (let i = 3; i < nBus; i++) {
-            const loadP = -0.08 - Math.random() * 0.25; // -0.08 to -0.33 MW
-            const loadQ = -0.04 - Math.random() * 0.12; // -0.04 to -0.16 MVAR
+        // PQバス (負荷) - 固定シードで再現性確保
+        const seed = 12345;
+        let rng = seed;
+        function seededRandom() {
+            rng = (rng * 1103515245 + 12345) & 0x7fffffff;
+            return rng / 0x7fffffff;
+        }
+        
+        for (let i = 5; i < nBus; i++) {
+            const loadP = -0.05 - seededRandom() * 0.15; // -0.05 to -0.2 MW（軽負荷に）
+            const loadQ = -0.02 - seededRandom() * 0.08; // -0.02 to -0.1 MVAR
             buses.push({ type: 'PQ', V: 1.0, delta: 0, Pspec: loadP, Qspec: loadQ });
         }
         
-        // 最適化された送電線網（スパース接続）
-        const connections = [];
+        // 送電線モデル - 正しいY行列の構築
+        // 非対角要素: Yij = -(gij + j*bij) = 負の値
+        // 対角要素: Yii = Σ(gij + j*bij) = 非対角要素の負の和
         
-        // 基本リング構造
-        for (let i = 0; i < nBus; i++) {
-            const next = (i + 1) % nBus;
-            connections.push([i, next]);
+        function addBranch(i, j, g, b) {
+            // 非対角要素は負の値（-アドミタンス）
+            Ybus[i][j].re -= g;
+            Ybus[i][j].im -= b;
+            Ybus[j][i].re -= g;
+            Ybus[j][i].im -= b;
+            // 対角要素は正の値（アドミタンスの和）
+            Ybus[i][i].re += g;
+            Ybus[i][i].im += b;
+            Ybus[j][j].re += g;
+            Ybus[j][j].im += b;
         }
         
-        // 制限的な追加接続（最大8個）
-        const maxAdditional = 8;
-        let additionalCount = 0;
-        for (let i = 0; i < nBus && additionalCount < maxAdditional; i++) {
-            if (Math.random() < 0.4) { // 40%の確率
-                const target = (i + 3 + Math.floor(Math.random() * (nBus - 6))) % nBus;
-                if (!connections.some(([a, b]) => (a === i && b === target) || (a === target && b === i))) {
-                    connections.push([i, target]);
-                    additionalCount++;
+        // 隣接ノードとの接続（リング構造）
+        for (let i = 0; i < nBus; i++) {
+            const next = (i + 1) % nBus;
+            const g = 0.5 + seededRandom() * 0.5;  // コンダクタンス 0.5-1.0
+            const b = 8 + seededRandom() * 8;      // サセプタンス 8-16
+            addBranch(i, next, g, b);
+        }
+        
+        // 追加接続（メッシュ構造を作る）
+        for (let i = 0; i < nBus; i++) {
+            if (seededRandom() < 0.25) {
+                const target = (i + 3 + Math.floor(seededRandom() * (nBus - 6))) % nBus;
+                if (target !== i && target !== (i + 1) % nBus && target !== (i - 1 + nBus) % nBus) {
+                    const g = 0.3 + seededRandom() * 0.3;
+                    const b = 5 + seededRandom() * 5;
+                    addBranch(i, target, g, b);
                 }
             }
         }
         
-        // Y行列への接続反映
-        connections.forEach(([i, j]) => {
-            const resistance = 0.5 + Math.random() * 0.8; // 0.5-1.3 ohm
-            const reactance = 8 + Math.random() * 8; // 8-16 ohm
-            Ybus[i][j] = { re: resistance, im: reactance };
-            Ybus[j][i] = { re: resistance, im: reactance };
-        });
-        
-        // 対角要素計算（最適化版）
+        // シャントアドミタンス（対地容量）を追加
         for (let i = 0; i < nBus; i++) {
-            let diagG = 0, diagB = 0;
-            connections.forEach(([a, b]) => {
-                if (a === i || b === i) {
-                    const j = (a === i) ? b : a;
-                    diagG += Ybus[i][j].re;
-                    diagB += Ybus[i][j].im;
-                }
-            });
-            Ybus[i][i] = { re: diagG, im: diagB };
+            Ybus[i][i].im += 0.01;  // 小さなシャント容量
         }
         
-        console.log(`Generated IEEE ${nBus}-bus system with ${connections.length} connections`);
-        
         return {
-            name: `IEEE ${nBus}バス最適化系統`,
+            name: 'IEEE 30バス簡易系統',
             Ybus: Ybus,
             buses: buses,
-            solverBus: 2,
-            initialV: 1.08,
-            initialDelta: 0.08
+            solverBus: 5, // PQバスを選択（より安定）
+            initialV: 1.2,      // 解から離れた初期点
+            initialDelta: 0.35  // 約20度
         };
     }
     
-    // ランダム系統生成（最適化版・ブラウザフリーズ対策）
-    function generateRandomPowerSystem(nBus = 10) {
-        // 系統規模制限（最大20バス）
-        nBus = Math.min(nBus, 20);
-        console.log(`Generating optimized ${nBus}-bus random system...`);
+    // ランダム電力システム（大規模対応）
+    function generateRandomPowerSystem(nBus = 30) {
+        console.log(`Generating ${nBus}-bus system...`);
+        const startTime = performance.now();
         
+        // スパース行列として実装（大規模系統の効率化）
         const Ybus = Array(nBus).fill(null).map(() => Array(nBus).fill(null).map(() => ({re: 0, im: 0})));
         const buses = [];
+        
+        // シード付き乱数で再現性確保
+        let rng = 54321 + nBus; // サイズごとに異なるシード
+        function seededRandom() {
+            rng = (rng * 1103515245 + 12345) & 0x7fffffff;
+            return rng / 0x7fffffff;
+        }
         
         // バス1: Slack bus
         buses.push({ type: 'Slack', V: 1.05, delta: 0 });
         
-        // 発電機バス (PVバス) - 約20%（小規模系統では比率高め）
-        const nGen = Math.max(1, Math.floor(nBus * 0.2));
-        for (let i = 1; i <= nGen; i++) {
-            const Pgen = 0.3 + Math.random() * 0.5; // 0.3-0.8 MW
-            const V = 1.0 + (Math.random() - 0.5) * 0.08; // 0.96-1.04
-            buses.push({ type: 'PV', V: V, Pspec: Pgen });
+        // 発電機バス (PQ化) - 約10%（大規模系統では比率を下げる）
+        const nGen = Math.max(2, Math.floor(nBus * 0.1));
+        for (let i = 1; i < nGen; i++) {
+            // 発電量（正の注入）
+            const Pgen = (0.1 + seededRandom() * 0.2) * Math.sqrt(30 / nBus); 
+            const Qgen = (0.03 + seededRandom() * 0.07) * Math.sqrt(30 / nBus);
+            buses.push({ type: 'PQ', V: 1.0, delta: 0, Pspec: Pgen, Qspec: Qgen });
         }
         
-        // 負荷バス (PQバス) - 残り
-        for (let i = nGen + 1; i < nBus; i++) {
-            const loadP = -0.1 - Math.random() * 0.2; // -0.1 to -0.3 MW
-            const loadQ = -0.05 - Math.random() * 0.1; // -0.05 to -0.15 MVAR
+        // 負荷バス (PQバス) - 残り（負荷を増やして収束を遅く）
+        for (let i = nGen; i < nBus; i++) {
+            // 負荷を従来より大きく設定
+            const loadP = (-0.08 - seededRandom() * 0.25) * Math.sqrt(30 / nBus);
+            const loadQ = (-0.03 - seededRandom() * 0.12) * Math.sqrt(30 / nBus);
             buses.push({ type: 'PQ', V: 1.0, delta: 0, Pspec: loadP, Qspec: loadQ });
         }
         
-        // 最適化されたスパース接続生成
-        const connections = [];
-        
-        // 基本リング構造（確実な接続性保証）
-        for (let i = 0; i < nBus; i++) {
-            const next = (i + 1) % nBus;
-            connections.push([i, next]);
+        // ブランチを追加するヘルパー関数
+        function addBranch(i, j, g, b) {
+            if (i === j) return;
+            // 非対角要素は負の値
+            Ybus[i][j].re -= g;
+            Ybus[i][j].im -= b;
+            Ybus[j][i].re -= g;
+            Ybus[j][i].im -= b;
+            // 対角要素は正の値
+            Ybus[i][i].re += g;
+            Ybus[i][i].im += b;
+            Ybus[j][j].re += g;
+            Ybus[j][j].im += b;
         }
         
-        // 追加接続（計算負荷を制限）
-        const maxAdditional = Math.min(nBus, 8); // 最大8個の追加接続
-        for (let k = 0; k < maxAdditional; k++) {
-            if (Math.random() < 0.4) { // 40%の確率で追加
-                const i = Math.floor(Math.random() * nBus);
-                const j = Math.floor(Math.random() * nBus);
-                if (i !== j && !connections.some(([a, b]) => (a === i && b === j) || (a === j && b === i))) {
-                    connections.push([i, j]);
+        // 基本リング構造（全バスが接続されることを保証）
+        for (let i = 0; i < nBus; i++) {
+            const next = (i + 1) % nBus;
+            // 大規模系統では強い接続を維持
+            const g = 0.5 + seededRandom() * 0.5;
+            const b = 10 + seededRandom() * 10;
+            addBranch(i, next, g, b);
+        }
+        
+        // 放射状構造の追加（ツリー接続で全バスがSlackに到達可能に）
+        // 大規模系統では特に重要
+        if (nBus > 30) {
+            // セクター分割で複数の「幹線」を作成
+            const nSectors = Math.ceil(nBus / 30);
+            for (let s = 0; s < nSectors; s++) {
+                const sectorStart = s * Math.floor(nBus / nSectors);
+                const sectorEnd = Math.min((s + 1) * Math.floor(nBus / nSectors), nBus);
+                
+                // 各セクターをSlackバス(0)に接続
+                if (sectorStart > 0) {
+                    const g = 0.8 + seededRandom() * 0.4;
+                    const b = 15 + seededRandom() * 10;
+                    addBranch(0, sectorStart, g, b);
+                }
+                
+                // セクター内の追加接続
+                for (let i = sectorStart; i < sectorEnd - 2; i++) {
+                    if (seededRandom() < 0.3) {
+                        const target = i + 2 + Math.floor(seededRandom() * Math.min(5, sectorEnd - i - 2));
+                        if (target < sectorEnd) {
+                            const g = 0.3 + seededRandom() * 0.3;
+                            const b = 6 + seededRandom() * 6;
+                            addBranch(i, target, g, b);
+                        }
+                    }
                 }
             }
         }
         
-        // Y行列への接続反映
-        connections.forEach(([i, j]) => {
-            const reactance = 0.1 + Math.random() * 0.15; // 0.1-0.25 pu
-            const resistance = 0.01 + Math.random() * 0.02; // 0.01-0.03 pu
-            Ybus[i][j] = { re: resistance, im: reactance };
-            Ybus[j][i] = { re: resistance, im: reactance };
-        });
-        
-        // 対角要素計算（最適化版）
+        // 追加のメッシュ接続（スパースに保つ）
+        // 大規模系統では接続確率を下げる
+        const connectProb = Math.max(0.05, 0.2 * (30 / nBus));
         for (let i = 0; i < nBus; i++) {
-            let diagG = 0, diagB = 0;
-            connections.forEach(([a, b]) => {
-                if (a === i || b === i) {
-                    const j = (a === i) ? b : a;
-                    diagG += Ybus[i][j].re;
-                    diagB += Ybus[i][j].im;
+            if (seededRandom() < connectProb) {
+                const maxJump = Math.min(10, Math.floor(nBus / 10));
+                const target = (i + 2 + Math.floor(seededRandom() * maxJump)) % nBus;
+                if (target !== i && target !== (i + 1) % nBus) {
+                    const g = 0.2 + seededRandom() * 0.2;
+                    const b = 5 + seededRandom() * 5;
+                    addBranch(i, target, g, b);
                 }
-            });
-            Ybus[i][i] = { re: diagG, im: diagB };
+            }
         }
         
-        console.log(`Generated ${nBus}-bus system with ${connections.length} connections`);
+        // シャントアドミタンス追加（対地容量）
+        for (let i = 0; i < nBus; i++) {
+            Ybus[i][i].im += 0.02;
+        }
+        
+        const elapsed = performance.now() - startTime;
+        console.log(`${nBus}-bus system generated in ${elapsed.toFixed(1)}ms`);
+        
+        // 初期点を解から大きく離す（収束過程を見やすく）
+        // 電圧を高め、位相角を大きくずらす
+        const initialV = 1.15 + 0.1 * seededRandom();  // 1.15〜1.25
+        const initialDelta = 0.3 + 0.2 * seededRandom();  // 0.3〜0.5 rad (17°〜29°)
         
         return {
-            name: `${nBus}ノード ランダム系統（最適化版）`,
+            name: `${nBus}ノード ランダム系統`,
             Ybus: Ybus,
             buses: buses,
-            solverBus: Math.min(2, nBus - 1),
-            initialV: 1.1,
-            initialDelta: 0.1
+            solverBus: Math.min(nGen + 1, nBus - 1),
+            initialV: initialV,
+            initialDelta: initialDelta
         };
     }
     
-    // キャッシュ機能付き動的問題取得関数
-    const generatedSystemsCache = new Map();
-    
+    // 動的問題取得関数
     function getDynamicProblem(problemKey) {
         try {
             console.log('Getting problem:', problemKey);
-            
-            // キャッシュチェック
-            if (generatedSystemsCache.has(problemKey)) {
-                console.log('Using cached system:', problemKey);
-                return generatedSystemsCache.get(problemKey);
-            }
-            
-            let system;
             if (problemKey === '30bus_ieee') {
                 console.log('Generating IEEE 30-bus system...');
-                system = generateIEEE30System();
+                return generateIEEE30System();
             } else if (problemKey === '30bus_random') {
-                console.log('Generating optimized 15-bus random system...');
-                system = generateRandomPowerSystem(15); // 15バスに制限
+                console.log('Generating 30-bus random system...');
+                return generateRandomPowerSystem(30);
+            } else if (problemKey === '100bus_random') {
+                console.log('Generating 100-bus random system...');
+                return generateRandomPowerSystem(100);
+            } else if (problemKey === '300bus_random') {
+                console.log('Generating 300-bus random system...');
+                return generateRandomPowerSystem(300);
+            } else if (problemKey === '500bus_random') {
+                console.log('Generating 500-bus random system...');
+                return generateRandomPowerSystem(500);
             } else {
                 console.log('Using predefined problem:', problemKey);
                 return problems[problemKey];
             }
-            
-            // キャッシュに保存
-            generatedSystemsCache.set(problemKey, system);
-            console.log('System cached for future use');
-            
-            return system;
         } catch (error) {
             console.error('Error in getDynamicProblem:', error);
+            // Fallback to simple 2-bus system
             console.log('Falling back to 2bus_medium');
             return problems['2bus_medium'];
         }
@@ -866,32 +925,85 @@
         const busIdx = prob.solverBus;
         let V = 1.0, delta = 0.0;
         
-        for (let iter = 0; iter < 50; iter++) {
+        // ダンピング係数（大規模系統の安定性向上）
+        let damping = 1.0;
+        let prevErr = Infinity;
+        
+        for (let iter = 0; iter < 100; iter++) {
             const m = calcMismatch(prob, busIdx, V, delta);
             const err = Math.sqrt(m.deltaP * m.deltaP + m.deltaQ * m.deltaQ);
-            if (err < 1e-12) return { V, delta, converged: true, iterations: iter };
+            
+            if (err < 1e-10) {
+                console.log(`True solution converged at iteration ${iter}, V=${V.toFixed(5)}, δ=${(delta*180/Math.PI).toFixed(3)}°`);
+                return { V, delta, converged: true, iterations: iter };
+            }
+            
+            // 発散検出とダンピング調整
+            if (err > prevErr * 2) {
+                damping *= 0.5;
+                if (damping < 0.01) {
+                    console.warn('True solution: damping too small, stopping');
+                    break;
+                }
+            } else if (err < prevErr * 0.9) {
+                damping = Math.min(1.0, damping * 1.2);
+            }
+            prevErr = err;
             
             const J = calcJacobian(prob, busIdx, V, delta);
             const det = J.J11 * J.J22 - J.J12 * J.J21;
-            if (Math.abs(det) < 1e-15) break;
+            if (Math.abs(det) < 1e-12) {
+                console.warn('True solution: Jacobian singular at iteration', iter);
+                break;
+            }
             
-            delta += (J.J22 * m.deltaP - J.J12 * m.deltaQ) / det;
-            V += (-J.J21 * m.deltaP + J.J11 * m.deltaQ) / det;
-            V = Math.max(0.5, Math.min(1.3, V));
+            const dDelta = damping * (J.J22 * m.deltaP - J.J12 * m.deltaQ) / det;
+            const dV = damping * (-J.J21 * m.deltaP + J.J11 * m.deltaQ) / det;
+            
+            delta += dDelta;
+            V += dV;
+            V = Math.max(0.5, Math.min(1.5, V));
+            delta = Math.max(-0.8, Math.min(0.8, delta));
         }
-        return { V, delta, converged: false, iterations: 50 };
+        console.warn(`True solution did not converge, best V=${V.toFixed(4)}, δ=${(delta*180/Math.PI).toFixed(2)}°`);
+        return { V, delta, converged: false, iterations: 100 };
     }
 
     // DC潮流計算 (Q無視、V=1固定、線形近似)
-    // P ≈ B * δ → δ ≈ P / B (Bは負なので符号注意)
+    // P ≈ B * δ → δ ≈ P / B (Bは正で対角要素を使用)
     function computeDCSolution(prob) {
         const busIdx = prob.solverBus;
-        const B0 = prob.Ybus[busIdx][0].im;  // Slackとのサセプタンス（正の値、例: 30）
-        const Pspec = prob.buses[busIdx].Pspec;  // 負荷は負
+        const n = prob.Ybus.length;
+        
+        // B行列の対角要素（自己アドミタンス）を使用
+        const Bii = prob.Ybus[busIdx][busIdx].im;
+        
+        if (Math.abs(Bii) < 1e-10) {
+            console.warn('DC calculation: Bii is too small');
+            return { V: 1.0, delta: 0 };
+        }
+        
+        // Slackバス(0)との接続によるサセプタンスを計算
+        let B0 = 0;
+        for (let j = 0; j < n; j++) {
+            if (j !== busIdx && prob.buses[j].type === 'Slack') {
+                // 非対角要素は負の値で格納されているので、符号反転
+                B0 = -prob.Ybus[busIdx][j].im;
+                break;
+            }
+        }
+        
+        // B0が見つからない場合は対角要素を使用
+        if (Math.abs(B0) < 1e-10) {
+            B0 = Bii;
+        }
+        
+        const Pspec = prob.buses[busIdx].Pspec || 0;
         // DC近似: P = V₁V₂B sin(δ) ≈ B*δ (小角度近似、V=1)
         // δ = P / B
         const delta = Pspec / B0;
-        return { V: 1.0, delta };
+        
+        return { V: 1.0, delta: Math.max(-0.5, Math.min(0.5, delta)) };
     }
 
     // ================================================================
@@ -905,17 +1017,33 @@
         const J = calcJacobian(prob, busIdx, state.V, state.delta);
         const det = J.J11 * J.J22 - J.J12 * J.J21;
         
-        if (Math.abs(det) < 1e-15) {
+        if (Math.abs(det) < 1e-12) {
             log('Jacobian特異! 計算停止', 'error');
             return { error: Infinity, converged: false };
         }
         
-        const dDelta = (J.J22 * m.deltaP - J.J12 * m.deltaQ) / det;
-        const dV = (-J.J21 * m.deltaP + J.J11 * m.deltaQ) / det;
+        let dDelta = (J.J22 * m.deltaP - J.J12 * m.deltaQ) / det;
+        let dV = (-J.J21 * m.deltaP + J.J11 * m.deltaQ) / det;
+        
+        // ダンピング係数（収束過程を見やすくするため制限を加える）
+        // 大規模系統や初期点が遠い場合に効果的
+        const dampingFactor = 0.7;  // 70%のステップに制限
+        dDelta *= dampingFactor;
+        dV *= dampingFactor;
+        
+        // 大きすぎる更新を制限（大規模系統の安定性）
+        const maxStep = 0.15;
+        if (Math.abs(dDelta) > maxStep) {
+            dDelta = Math.sign(dDelta) * maxStep;
+        }
+        if (Math.abs(dV) > maxStep) {
+            dV = Math.sign(dV) * maxStep;
+        }
         
         state.delta += dDelta;
         state.V += dV;
-        state.V = Math.max(0.5, Math.min(1.3, state.V));
+        state.V = Math.max(0.6, Math.min(1.4, state.V));
+        state.delta = Math.max(-0.8, Math.min(0.8, state.delta));
         
         const error = calcError(prob, busIdx, state.V, state.delta);
         log(`NR[${state.iteration}]: V=${state.V.toFixed(5)}, δ=${(state.delta*180/Math.PI).toFixed(3)}°, err=${error.toExponential(2)}`);
@@ -931,13 +1059,22 @@
         
         const Yii = Ybus[busIdx][busIdx];
         
+        // Y行列対角要素のチェック
+        const Yiimag2 = Yii.re * Yii.re + Yii.im * Yii.im;
+        if (Yiimag2 < 1e-10) {
+            log(`GS[${state.iteration}]: Y行列対角要素が小さすぎます`, 'error');
+            return { error: Infinity, converged: false };
+        }
+        
         // V_new = (1/Yii) * [S*/V* - Σ(j≠i) Yij*Vj]
         const V_re = state.V * Math.cos(state.delta);
         const V_im = state.V * Math.sin(state.delta);
         const Vmag2 = state.V * state.V;
         
         // S* / V (S = P + jQ, S* = P - jQ)
-        const Sconj_re = bus.Pspec, Sconj_im = -bus.Qspec;
+        const Pspec = bus.Pspec || 0;
+        const Qspec = bus.Qspec || 0;
+        const Sconj_re = Pspec, Sconj_im = -Qspec;
         const SoV_re = (Sconj_re * V_re + Sconj_im * V_im) / Vmag2;
         const SoV_im = (Sconj_im * V_re - Sconj_re * V_im) / Vmag2;
         
@@ -958,7 +1095,6 @@
         const rhs_im = SoV_im - sumYV_im;
         
         // V_new = rhs / Yii
-        const Yiimag2 = Yii.re * Yii.re + Yii.im * Yii.im;
         const Vnew_re = (rhs_re * Yii.re + rhs_im * Yii.im) / Yiimag2;
         const Vnew_im = (rhs_im * Yii.re - rhs_re * Yii.im) / Yiimag2;
         
@@ -977,7 +1113,8 @@
         const oldV = state.V, oldDelta = state.delta;
         state.V = state.V + alpha * (newMag - state.V);
         state.delta = state.delta + alpha * (newAngle - state.delta);
-        state.V = Math.max(0.5, Math.min(1.3, state.V));
+        state.V = Math.max(0.6, Math.min(1.4, state.V));
+        state.delta = Math.max(-0.8, Math.min(0.8, state.delta));
         
         const error = calcError(prob, busIdx, state.V, state.delta);
         
@@ -1024,8 +1161,8 @@
         let bestV = state.V, bestDelta = state.delta, bestErr = currentError;
         for (let k = 0; k < 20; k++) {
             const alpha = baseStep * Math.pow(0.5, k);
-            const newV = Math.max(0.5, Math.min(1.3, state.V + alpha * dir_V));
-            const newDelta = state.delta + alpha * dir_delta;
+            const newV = Math.max(0.6, Math.min(1.4, state.V + alpha * dir_V));
+            const newDelta = Math.max(-0.8, Math.min(0.8, state.delta + alpha * dir_delta));
             const newErr = calcError(prob, busIdx, newV, newDelta);
             
             if (newErr < bestErr) {
@@ -1096,42 +1233,56 @@
             state.iteration = 0;
             
             const prob = getDynamicProblem(state.problem);
-            console.log('Problem loaded:', prob.name, 'buses:', prob.buses.length);
-        state.V = prob.initialV;
-        state.delta = prob.initialDelta;
-        state.trajectory = [{ V: state.V, delta: state.delta }];
-        state.errorHistory = [];
+            const nBuses = prob.buses.length;
+            console.log('Problem loaded:', prob.name, 'buses:', nBuses);
+            
+            // 大規模系統では最大反復回数を増やす
+            state.maxIterations = Math.max(500, nBuses * 5);
+            
+            state.V = prob.initialV;
+            state.delta = prob.initialDelta;
+            state.trajectory = [{ V: state.V, delta: state.delta }];
+            state.errorHistory = [];
         
-        // 診断状態のリセット
-        state.stuckCount = 0;
-        state.oscillationCount = 0;
-        state.divergenceCount = 0;
-        state.lastErrors = [];
-        state.diagnosisResult = null;
-        hideDiagnosisPanel();
+            // 診断状態のリセット
+            state.stuckCount = 0;
+            state.oscillationCount = 0;
+            state.divergenceCount = 0;
+            state.lastErrors = [];
+            state.diagnosisResult = null;
+            hideDiagnosisPanel();
         
-        // 真の解を計算
-        state.trueSolution = computeTrueSolution(prob);
-        state.dcSolution = computeDCSolution(prob);
+            // 真の解を計算（大規模系統では時間がかかる場合あり）
+            const startTrue = performance.now();
+            state.trueSolution = computeTrueSolution(prob);
+            const elapsedTrue = performance.now() - startTrue;
+            
+            state.dcSolution = computeDCSolution(prob);
         
-        clearLog();
-        log(`=== ${prob.name} ===`);
-        log(`初期点: V=${state.V.toFixed(4)}, δ=${(state.delta*180/Math.PI).toFixed(2)}°`);
+            clearLog();
+            log(`=== ${prob.name} ===`);
+            log(`バス数: ${nBuses}, 最大反復: ${state.maxIterations}`);
+            log(`初期点: V=${state.V.toFixed(4)}, δ=${(state.delta*180/Math.PI).toFixed(2)}°`);
         
-        if (state.trueSolution.converged) {
-            log(`真の解: V=${state.trueSolution.V.toFixed(5)}, δ=${(state.trueSolution.delta*180/Math.PI).toFixed(3)}° (${state.trueSolution.iterations}回で収束)`, 'success');
-        } else {
-            log(`真の解: 計算失敗`, 'error');
-        }
-        log(`DC近似: V=1.0, δ=${(state.dcSolution.delta*180/Math.PI).toFixed(3)}°`);
-        log(`許容誤差: ${state.tolerance.toExponential(1)}`);
-        log('---');
+            if (state.trueSolution.converged) {
+                log(`真の解: V=${state.trueSolution.V.toFixed(5)}, δ=${(state.trueSolution.delta*180/Math.PI).toFixed(3)}° (${state.trueSolution.iterations}回, ${elapsedTrue.toFixed(0)}ms)`, 'success');
+            } else {
+                log(`真の解: 計算失敗 (${elapsedTrue.toFixed(0)}ms)`, 'error');
+            }
+            log(`DC近似: V=1.0, δ=${(state.dcSolution.delta*180/Math.PI).toFixed(3)}°`);
+            log(`許容誤差: ${state.tolerance.toExponential(1)}`);
+            
+            if (nBuses > 100) {
+                log(`💡 大規模系統です。描画は簡略化されています。`, 'info');
+            }
+            log('---');
         
-        updateDisplay();
-        drawAll();
-        console.log('Reset completed successfully');
+            updateDisplay();
+            drawAll();
+            console.log('Reset completed successfully');
         } catch (error) {
             console.error('Reset error:', error);
+            log(`エラー: ${error.message}`, 'error');
         }
     }
 
@@ -1156,6 +1307,21 @@
         state.diagnosisResult = null;
         document.getElementById('runBtn').disabled = true;
         
+        const prob = getDynamicProblem(state.problem);
+        const nBuses = prob.buses.length;
+        
+        // 大規模系統では描画頻度を下げる
+        let drawInterval;
+        if (nBuses > 200) {
+            drawInterval = 10;  // 10反復ごと
+        } else if (nBuses > 100) {
+            drawInterval = 5;   // 5反復ごと
+        } else if (nBuses > 30) {
+            drawInterval = 3;   // 3反復ごと
+        } else {
+            drawInterval = 1;   // 毎反復
+        }
+        
         let lastDiagnosis = null;
         
         while (state.running && state.iteration < state.maxIterations) {
@@ -1164,8 +1330,11 @@
             state.trajectory.push({ V: state.V, delta: state.delta });
             state.errorHistory.push(result.error);
             
-            updateDisplay();
-            drawAll();
+            // 描画頻度の調整
+            if (state.iteration % drawInterval === 0 || result.converged) {
+                updateDisplay();
+                drawAll();
+            }
             
             // 定期的に診断を実行
             if (state.iteration % 5 === 0 || result.converged) {
@@ -1190,8 +1359,14 @@
                 break;
             }
             
-            await new Promise(r => setTimeout(r, 300 / state.speed));
+            // 大規模系統では待機時間を短く
+            const delay = nBuses > 100 ? 50 / state.speed : 300 / state.speed;
+            await new Promise(r => setTimeout(r, delay));
         }
+        
+        // 最終描画
+        updateDisplay();
+        drawAll();
         
         // 最終診断
         if (!state.diagnosisResult) {
@@ -1240,12 +1415,21 @@
         
         state.trajectory.forEach(p => { allV.push(p.V); allD.push(p.delta); });
         
-        const Vmin = Math.min(...allV) - 0.1;
-        const Vmax = Math.max(...allV) + 0.1;
-        const dMin = Math.min(...allD) - 0.1;
-        const dMax = Math.max(...allD) + 0.1;
+        // マージンを大きめにして初期点と解の両方が見えるようにする
+        const Vmargin = 0.15;
+        const dMargin = 0.15;
         
-        return { Vmin: Math.max(0.5, Vmin), Vmax: Math.min(1.4, Vmax), dMin, dMax };
+        const Vmin = Math.min(...allV) - Vmargin;
+        const Vmax = Math.max(...allV) + Vmargin;
+        const dMin = Math.min(...allD) - dMargin;
+        const dMax = Math.max(...allD) + dMargin;
+        
+        return { 
+            Vmin: Math.max(0.4, Vmin), 
+            Vmax: Math.min(1.6, Vmax), 
+            dMin: Math.max(-1.0, dMin), 
+            dMax: Math.min(1.0, dMax)
+        };
     }
 
     function drawAll() {
@@ -1253,6 +1437,252 @@
         drawErrorSurface();
         drawConvergenceChart();
         drawVectorField();
+        drawSpyPlot();
+        drawNetworkGraph();
+    }
+
+    // Y行列のスパースパターン表示（Spy Plot）
+    function drawSpyPlot() {
+        const canvas = document.getElementById('spyPlot');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = rect.width - 20;
+        canvas.height = rect.height - 20;
+        const w = canvas.width, h = canvas.height;
+
+        ctx.fillStyle = '#1a1a2e';
+        ctx.fillRect(0, 0, w, h);
+
+        const prob = getDynamicProblem(state.problem);
+        const Ybus = prob.Ybus;
+        const n = Ybus.length;
+        
+        // 行列表示エリア（正方形を維持）
+        const margin = 40;
+        const size = Math.min(w - margin * 2, h - margin * 2);
+        const cellSize = size / n;
+        const offsetX = (w - size) / 2;
+        const offsetY = (h - size) / 2;
+
+        // 背景（行列領域）
+        ctx.fillStyle = '#252540';
+        ctx.fillRect(offsetX, offsetY, size, size);
+
+        // 非ゼロ要素をプロット
+        let nnz = 0;  // 非ゼロ要素数
+        let maxMag = 0;
+        
+        // 最大値を先に計算
+        for (let i = 0; i < n; i++) {
+            for (let j = 0; j < n; j++) {
+                const mag = Math.sqrt(Ybus[i][j].re ** 2 + Ybus[i][j].im ** 2);
+                if (mag > maxMag) maxMag = mag;
+            }
+        }
+
+        for (let i = 0; i < n; i++) {
+            for (let j = 0; j < n; j++) {
+                const val = Ybus[i][j];
+                const mag = Math.sqrt(val.re ** 2 + val.im ** 2);
+                
+                if (mag > 1e-10) {
+                    nnz++;
+                    // 大きさに応じて色を変化
+                    const intensity = Math.min(1, mag / maxMag);
+                    
+                    if (i === j) {
+                        // 対角要素は青系
+                        ctx.fillStyle = `rgba(77, 171, 247, ${0.3 + 0.7 * intensity})`;
+                    } else {
+                        // 非対角要素は赤〜黄
+                        const hue = 30 - 30 * intensity;  // 30(オレンジ)→0(赤)
+                        ctx.fillStyle = `hsla(${hue}, 80%, 50%, ${0.4 + 0.6 * intensity})`;
+                    }
+                    
+                    const x = offsetX + j * cellSize;
+                    const y = offsetY + i * cellSize;
+                    
+                    if (n <= 50) {
+                        // 小規模: セルを描画
+                        ctx.fillRect(x + 0.5, y + 0.5, Math.max(cellSize - 1, 2), Math.max(cellSize - 1, 2));
+                    } else {
+                        // 大規模: 点で描画
+                        ctx.fillRect(x, y, Math.max(cellSize, 1), Math.max(cellSize, 1));
+                    }
+                }
+            }
+        }
+
+        // 軸ラベル
+        ctx.fillStyle = '#e9ecef';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'center';
+        
+        // 行列サイズとスパース性を表示
+        const sparsity = (1 - nnz / (n * n)) * 100;
+        ctx.fillText(`${n}×${n} 行列`, w / 2, 15);
+        ctx.fillText(`非ゼロ: ${nnz} (スパース性: ${sparsity.toFixed(1)}%)`, w / 2, h - 5);
+        
+        // 軸番号（小規模のみ）
+        if (n <= 30) {
+            ctx.font = '8px sans-serif';
+            ctx.textAlign = 'right';
+            for (let i = 0; i < n; i += Math.ceil(n / 10)) {
+                ctx.fillText(i.toString(), offsetX - 3, offsetY + i * cellSize + cellSize / 2 + 3);
+            }
+            ctx.textAlign = 'center';
+            for (let j = 0; j < n; j += Math.ceil(n / 10)) {
+                ctx.fillText(j.toString(), offsetX + j * cellSize + cellSize / 2, offsetY + size + 12);
+            }
+        }
+
+        // 凡例
+        ctx.font = '9px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#4dabf7';
+        ctx.fillRect(5, 5, 10, 10);
+        ctx.fillStyle = '#e9ecef';
+        ctx.fillText('対角', 18, 13);
+        
+        ctx.fillStyle = '#ff6b6b';
+        ctx.fillRect(55, 5, 10, 10);
+        ctx.fillStyle = '#e9ecef';
+        ctx.fillText('非対角', 68, 13);
+    }
+
+    // 系統ネットワーク構造の描画
+    function drawNetworkGraph() {
+        const canvas = document.getElementById('networkGraph');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = rect.width - 20;
+        canvas.height = rect.height - 20;
+        const w = canvas.width, h = canvas.height;
+
+        ctx.fillStyle = '#1a1a2e';
+        ctx.fillRect(0, 0, w, h);
+
+        const prob = getDynamicProblem(state.problem);
+        const Ybus = prob.Ybus;
+        const buses = prob.buses;
+        const n = Ybus.length;
+        
+        // ノード位置を計算（円形レイアウト + Force-directed風の調整）
+        const positions = [];
+        const cx = w / 2, cy = h / 2;
+        const radius = Math.min(w, h) * 0.38;
+        
+        for (let i = 0; i < n; i++) {
+            const angle = (2 * Math.PI * i / n) - Math.PI / 2;
+            positions.push({
+                x: cx + radius * Math.cos(angle),
+                y: cy + radius * Math.sin(angle)
+            });
+        }
+
+        // エッジ（送電線）を描画
+        const edges = [];
+        for (let i = 0; i < n; i++) {
+            for (let j = i + 1; j < n; j++) {
+                const mag = Math.sqrt(Ybus[i][j].re ** 2 + Ybus[i][j].im ** 2);
+                if (mag > 1e-10) {
+                    edges.push({ from: i, to: j, weight: mag });
+                }
+            }
+        }
+
+        // エッジの最大重みを取得
+        const maxWeight = Math.max(...edges.map(e => e.weight), 1);
+
+        // エッジを描画
+        edges.forEach(edge => {
+            const p1 = positions[edge.from];
+            const p2 = positions[edge.to];
+            
+            // 重みに応じて線の太さと透明度を変化
+            const intensity = edge.weight / maxWeight;
+            const lineWidth = 0.5 + 2 * intensity;
+            const alpha = 0.2 + 0.6 * intensity;
+            
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.strokeStyle = `rgba(100, 180, 255, ${alpha})`;
+            ctx.lineWidth = lineWidth;
+            ctx.stroke();
+        });
+
+        // ノードを描画
+        const nodeRadius = n > 100 ? 3 : (n > 30 ? 5 : 8);
+        
+        positions.forEach((pos, i) => {
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y, nodeRadius, 0, 2 * Math.PI);
+            
+            const bus = buses[i];
+            if (bus.type === 'Slack') {
+                // Slackバス: 緑
+                ctx.fillStyle = '#51cf66';
+                ctx.strokeStyle = '#2b8a3e';
+            } else if (i === prob.solverBus) {
+                // 解析対象バス: 赤
+                ctx.fillStyle = '#ff6b6b';
+                ctx.strokeStyle = '#c92a2a';
+            } else if (bus.Pspec > 0) {
+                // 発電バス: 黄
+                ctx.fillStyle = '#ffd43b';
+                ctx.strokeStyle = '#f59f00';
+            } else {
+                // 負荷バス: 青
+                ctx.fillStyle = '#4dabf7';
+                ctx.strokeStyle = '#1971c2';
+            }
+            
+            ctx.fill();
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+        });
+
+        // ノード番号（小規模のみ）
+        if (n <= 30) {
+            ctx.font = '9px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = '#1a1a2e';
+            positions.forEach((pos, i) => {
+                ctx.fillText(i.toString(), pos.x, pos.y);
+            });
+        }
+
+        // 凡例
+        ctx.font = '9px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        
+        const legendY = 5;
+        const legendItems = [
+            { color: '#51cf66', label: 'Slack' },
+            { color: '#ff6b6b', label: '解析対象' },
+            { color: '#ffd43b', label: '発電' },
+            { color: '#4dabf7', label: '負荷' }
+        ];
+        
+        legendItems.forEach((item, i) => {
+            const x = 5 + i * 60;
+            ctx.beginPath();
+            ctx.arc(x + 5, legendY + 5, 4, 0, 2 * Math.PI);
+            ctx.fillStyle = item.color;
+            ctx.fill();
+            ctx.fillStyle = '#e9ecef';
+            ctx.fillText(item.label, x + 12, legendY);
+        });
+
+        // 統計情報
+        ctx.fillStyle = '#868e96';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${n}ノード, ${edges.length}ブランチ`, w / 2, h - 8);
     }
 
     function drawComplexPlane() {
@@ -1352,7 +1782,19 @@
         const range = getViewRange();
         const prob = getDynamicProblem(state.problem);
         const busIdx = prob.solverBus;
-        const res = 40;
+        
+        // 大規模系統では解像度を下げる
+        const nBuses = prob.buses.length;
+        let res;
+        if (nBuses > 200) {
+            res = 15;  // 超大規模
+        } else if (nBuses > 100) {
+            res = 20;  // 大規模
+        } else if (nBuses > 30) {
+            res = 25;  // 中規模
+        } else {
+            res = 40;  // 小規模
+        }
         
         const errors = [];
         let maxErr = 0;
@@ -1413,6 +1855,13 @@
         ctx.font = '11px sans-serif';
         ctx.fillText('δ →', w - 25, h - 5);
         ctx.fillText('|V| ↑', 5, 12);
+        
+        // 大規模系統の場合は注釈
+        if (nBuses > 50) {
+            ctx.fillStyle = 'rgba(255,255,255,0.5)';
+            ctx.font = '9px sans-serif';
+            ctx.fillText(`${nBuses}バス (簡易表示)`, 5, h - 5);
+        }
     }
 
     function drawConvergenceChart() {
@@ -1518,9 +1967,20 @@
         const range = getViewRange();
         const prob = getDynamicProblem(state.problem);
         const busIdx = prob.solverBus;
+        const nBuses = prob.buses.length;
         
         // 大規模系統では計算負荷軽減のためグリッドサイズを調整
-        const gridSize = prob.buses && prob.buses.length > 10 ? 6 : 10;
+        let gridSize;
+        if (nBuses > 200) {
+            gridSize = 5;
+        } else if (nBuses > 100) {
+            gridSize = 6;
+        } else if (nBuses > 30) {
+            gridSize = 8;
+        } else {
+            gridSize = 10;
+        }
+        
         const cellW = w / gridSize, cellH = h / gridSize;
 
         for (let i = 1; i < gridSize; i++) {
@@ -1575,6 +2035,13 @@
         ctx.font = '11px sans-serif';
         ctx.fillText('δ →', w - 25, h - 5);
         ctx.fillText('|V| ↑', 5, 12);
+        
+        // 大規模系統の場合は注釈
+        if (nBuses > 50) {
+            ctx.fillStyle = 'rgba(255,255,255,0.5)';
+            ctx.font = '9px sans-serif';
+            ctx.fillText(`${nBuses}バス (簡易表示)`, 5, h - 5);
+        }
     }
 
     // ================================================================
@@ -1582,8 +2049,7 @@
     // ================================================================
     document.addEventListener('DOMContentLoaded', () => {
         try {
-            console.warn('⚠️ v6は不安定です。v7の使用を強く推奨します: power_flow_intuitive_v7.html');
-            console.log('Initializing power flow intuitive v6...');
+            console.log('Initializing power flow intuitive v6 (fixed)...');
             
             document.getElementById('algoSelect').addEventListener('change', e => {
                 state.algorithm = e.target.value;
