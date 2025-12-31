@@ -31,6 +31,7 @@
 | **MATPOWER準拠実装** | Newton-Raphson, 高速分離解法 | [🚀 起動](https://lutelute.github.io/power_flow_viz/power_flow_matpower_v2.html) | [📖 詳細](./docs/power_flow_matpower_v2.md) |
 | **多手法比較分析** | 主要3手法の性能比較 | [🚀 起動](https://lutelute.github.io/power_flow_viz/power_flow_compare.html) | [📖 詳細](./docs/power_flow_compare.md) |
 | **収束過程直感的理解** | 複素平面・誤差面可視化 | [🚀 起動](https://lutelute.github.io/power_flow_viz/power_flow_intuitive.html) | [📖 詳細](./docs/power_flow_intuitive.md) |
+| **└ v5最新版** | 問題修正・UI改善版 | [🚀 v5起動](https://lutelute.github.io/power_flow_viz/power_flow_intuitive_v5.html) | 最新改善版 |
 | **DC潮流精度検証** | DC近似 vs AC解析 | [🚀 起動](https://lutelute.github.io/power_flow_viz/dc_accuracy_analysis.html) | [📖 詳細](./docs/dc_accuracy_analysis.md) |
 
 ## 🚀 使用方法
@@ -297,6 +298,20 @@ class PowerFlowSolver {
 
 このプロジェクトは教育目的で作成されています。
 
+## 🔄 更新履歴
+
+### 直感的理解ツール バージョン履歴
+- **v5.0** (2024-12-31): 問題修正・UI改善、数値安定性向上
+- **v4.0** (2024-12-31): 最新機能統合版
+- **v3.0** (2024-12-31): 遠い初期点設定、大規模系統対応
+- **v2.0** (2024-12-30): 精度・収束可視化改善
+- **v1.0** (2024-12-30): 初版リリース
+
+### プロジェクト全体
+- **v1.2** (2024-12-31): 直感的理解ツールv5対応、問題修正
+- **v1.1** (2024-12-30): 技術文書充実、GitHub Pages対応
+- **v1.0** (2024-12-30): 初回リリース
+
 ## 🙏 謝辞
 
 このプロジェクトは電力系統解析における教育の質向上を目的として開発されました。MATPOWERプロジェクト、IEEE標準系統データ、および電力系統解析分野の先駆的研究に深く感謝いたします。
@@ -304,5 +319,5 @@ class PowerFlowSolver {
 ---
 
 **開発者**: [プロジェクト作成者]  
-**更新日**: 2024年12月30日  
-**バージョン**: 1.0.0
+**更新日**: 2024年12月31日  
+**バージョン**: 1.2.0
