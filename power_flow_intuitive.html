@@ -611,8 +611,8 @@
             speed: 1,
             running: false,
             iteration: 0,
-            maxIterations: 50,
-            tolerance: 1e-6,
+            maxIterations: 100,      // 増加
+            tolerance: 1e-10,        // 高精度化
             
             // Current state
             V: 1.0,
@@ -623,7 +623,27 @@
             errorHistory: [],
             
             // Animation
-            animationId: null
+            animationId: null,
+            
+            // Enhanced precision tracking
+            detailedTrajectory: [],  // より詳細な軌跡
+            convergenceRate: 0,      // 収束率
+            jacobianHistory: [],     // Jacobian行列式履歴
+            stepSizeHistory: [],     // ステップサイズ履歴
+            errorComponents: [],     // P, Q誤差成分別
+            adaptiveStep: true,      // 適応ステップサイズ
+            currentStepSize: 1.0,    // 現在のステップサイズ
+            dampingFactor: 0.8,      // ダンピング係数
+            
+            // Numerical stability
+            minStepSize: 1e-6,       // 最小ステップサイズ
+            maxStepSize: 2.0,        // 最大ステップサイズ
+            jacobianlCondition: 0,   // Jacobian条件数
+            
+            // Visualization precision
+            trajectoryDetail: 10,    // 軌跡補間点数
+            errorSurfaceResolution: 100, // 誤差面解像度
+            showSubIterations: true  // サブ反復表示
         };
 
         // ============================================================
@@ -753,25 +773,87 @@
             const m = calculateMismatch(state.V, state.delta);
             const J = calculateJacobian(state.V, state.delta);
             
-            // Solve J * dx = -f
+            // Calculate Jacobian determinant and condition number
             const det = J.J11 * J.J22 - J.J12 * J.J21;
+            const jacNorm = Math.sqrt(J.J11*J.J11 + J.J12*J.J12 + J.J21*J.J21 + J.J22*J.J22);
+            const invJacNorm = Math.abs(det) > 1e-15 ? Math.sqrt(
+                (J.J22*J.J22 + J.J12*J.J12 + J.J21*J.J21 + J.J11*J.J11) / (det*det)
+            ) : Infinity;
+            state.jacobianlCondition = jacNorm * invJacNorm;
             
-            if (Math.abs(det) < 1e-10) {
-                return { converged: false, error: Infinity };
+            // Store Jacobian determinant history
+            state.jacobianHistory.push(Math.abs(det));
+            
+            // Check for singularity with higher precision
+            if (Math.abs(det) < 1e-15 || !isFinite(det)) {
+                return { converged: false, error: Infinity, singular: true };
             }
             
+            // Calculate Newton direction with higher precision
             const dDelta = -(J.J22 * m.deltaP - J.J12 * m.deltaQ) / det;
             const dV = -(-J.J21 * m.deltaP + J.J11 * m.deltaQ) / det;
             
-            // Update with damping for visualization
-            const damping = 0.8;
+            // Adaptive step size based on error magnitude and Jacobian condition
+            let stepSize = state.currentStepSize;
+            const errorMagnitude = Math.sqrt(m.deltaP * m.deltaP + m.deltaQ * m.deltaQ);
+            
+            if (state.adaptiveStep) {
+                // Reduce step size if error is large or Jacobian is ill-conditioned
+                if (errorMagnitude > 1.0 || state.jacobianlCondition > 1e8) {
+                    stepSize *= 0.5;
+                } else if (errorMagnitude < 0.1 && state.jacobianlCondition < 1e4) {
+                    stepSize = Math.min(stepSize * 1.2, state.maxStepSize);
+                }
+                stepSize = Math.max(state.minStepSize, Math.min(stepSize, state.maxStepSize));
+                state.currentStepSize = stepSize;
+            }
+            
+            // Apply damping with adaptive step size
+            const damping = state.dampingFactor * stepSize;
+            const oldV = state.V;
+            const oldDelta = state.delta;
+            
             state.delta += damping * dDelta;
             state.V += damping * dV;
             
-            // Clamp V to reasonable range
-            state.V = Math.max(0.7, Math.min(1.2, state.V));
+            // Enhanced bounds with soft clamping
+            if (state.V < 0.5) state.V = 0.5;
+            else if (state.V > 1.5) state.V = 1.5;
+            
+            // Store detailed trajectory with intermediate points
+            if (state.showSubIterations && state.trajectoryDetail > 1) {
+                for (let i = 1; i <= state.trajectoryDetail; i++) {
+                    const alpha = i / state.trajectoryDetail;
+                    const interpV = oldV + alpha * damping * dV;
+                    const interpDelta = oldDelta + alpha * damping * dDelta;
+                    state.detailedTrajectory.push({ V: interpV, delta: interpDelta, 
+                                                  subIteration: i, 
+                                                  iteration: state.iteration });
+                }
+            }
             
             const error = getError(state.V, state.delta);
+            
+            // Store step size history
+            state.stepSizeHistory.push(stepSize);
+            
+            // Store error components
+            state.errorComponents.push({
+                P: Math.abs(m.deltaP),
+                Q: Math.abs(m.deltaQ),
+                total: error,
+                iteration: state.iteration,
+                jacobianDet: Math.abs(det),
+                condition: state.jacobianlCondition
+            });
+            
+            // Calculate convergence rate
+            if (state.errorHistory.length > 1) {
+                const prevError = state.errorHistory[state.errorHistory.length - 1];
+                if (prevError > 0 && error > 0) {
+                    state.convergenceRate = Math.log(error / prevError);
+                }
+            }
             
             updateEquation(`Newton-Raphson ステップ ${state.iteration + 1}:
 
@@ -1058,8 +1140,53 @@ V₂ = (1/Y₂₂) × [(P-jQ)/V₂* - Y₂₁×V₁]
             ctx.font = 'bold 10px JetBrains Mono';
             ctx.fillText('解', solX + 15, solY);
 
-            // Draw trajectory
-            if (state.trajectory.length > 1) {
+            // Draw detailed trajectory
+            if (state.detailedTrajectory.length > 1) {
+                // Main trajectory
+                ctx.beginPath();
+                ctx.strokeStyle = '#ffa94d';
+                ctx.lineWidth = 3;
+                
+                state.detailedTrajectory.forEach((point, i) => {
+                    const x = cx + point.V * Math.cos(point.delta) * scale;
+                    const y = cy - point.V * Math.sin(point.delta) * scale;
+                    
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+                
+                // Sub-iteration points
+                state.detailedTrajectory.forEach((point, i) => {
+                    const x = cx + point.V * Math.cos(point.delta) * scale;
+                    const y = cy - point.V * Math.sin(point.delta) * scale;
+                    
+                    if (point.subIteration === state.trajectoryDetail) {
+                        // Major iteration points
+                        ctx.beginPath();
+                        ctx.arc(x, y, 6, 0, 2 * Math.PI);
+                        ctx.fillStyle = '#ffa94d';
+                        ctx.fill();
+                        ctx.strokeStyle = '#fff';
+                        ctx.lineWidth = 1;
+                        ctx.stroke();
+                        
+                        // Label iteration number
+                        ctx.fillStyle = '#fff';
+                        ctx.font = 'bold 10px JetBrains Mono';
+                        ctx.fillText(point.iteration.toString(), x + 10, y - 10);
+                    } else {
+                        // Sub-iteration points
+                        ctx.beginPath();
+                        ctx.arc(x, y, 2, 0, 2 * Math.PI);
+                        ctx.fillStyle = 'rgba(255, 164, 77, 0.5)';
+                        ctx.fill();
+                    }
+                });
+            }
+            
+            // Fallback: standard trajectory if detailed not available
+            else if (state.trajectory.length > 1) {
                 ctx.beginPath();
                 ctx.strokeStyle = '#ffa94d';
                 ctx.lineWidth = 2;
@@ -1324,7 +1451,7 @@ V₂ = (1/Y₂₂) × [(P-jQ)/V₂* - Y₂₁×V₁]
             
             const w = canvas.width;
             const h = canvas.height;
-            const padding = { top: 20, right: 20, bottom: 40, left: 60 };
+            const padding = { top: 30, right: 120, bottom: 50, left: 80 };
 
             ctx.fillStyle = '#1a1a2e';
             ctx.fillRect(0, 0, w, h);
@@ -1333,90 +1460,259 @@ V₂ = (1/Y₂₂) × [(P-jQ)/V₂* - Y₂₁×V₁]
                 ctx.fillStyle = '#868e96';
                 ctx.font = '12px JetBrains Mono';
                 ctx.textAlign = 'center';
-                ctx.fillText('実行すると収束曲線が表示されます', w / 2, h / 2);
+                ctx.fillText('実行すると詳細収束情報が表示されます', w / 2, h / 2);
                 return;
             }
 
             const data = state.errorHistory;
-            const logData = data.map(d => Math.log10(Math.max(d, 1e-12)));
+            const errorComponents = state.errorComponents;
+            const jacobianHist = state.jacobianHistory;
+            const stepSizeHist = state.stepSizeHistory;
+            
+            // Calculate plot area - split into two subplots
+            const plotW = w - padding.left - padding.right;
+            const plotH1 = (h - padding.top - padding.bottom) * 0.7; // Error plot
+            const plotH2 = (h - padding.top - padding.bottom) * 0.25; // Jacobian/Step size plot
+            const gap = 15;
+            
+            // === Main Error Plot ===
+            const logData = data.map(d => Math.log10(Math.max(d, 1e-15)));
             const minLog = Math.min(...logData, Math.log10(state.tolerance)) - 1;
             const maxLog = Math.max(...logData) + 0.5;
-            
-            const plotW = w - padding.left - padding.right;
-            const plotH = h - padding.top - padding.bottom;
+            const xScale = plotW / Math.max(data.length, 10);
 
-            // Grid
+            // Background grid
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
             ctx.lineWidth = 1;
-            
-            for (let i = 0; i <= 5; i++) {
-                const y = padding.top + i * plotH / 5;
+            for (let i = 0; i <= 6; i++) {
+                const y = padding.top + i * plotH1 / 6;
                 ctx.beginPath();
                 ctx.moveTo(padding.left, y);
-                ctx.lineTo(w - padding.right, y);
+                ctx.lineTo(padding.left + plotW, y);
                 ctx.stroke();
             }
 
             // Tolerance line
-            const tolY = padding.top + (maxLog - Math.log10(state.tolerance)) / (maxLog - minLog) * plotH;
+            const tolY = padding.top + (maxLog - Math.log10(state.tolerance)) / (maxLog - minLog) * plotH1;
             ctx.strokeStyle = '#ff6b6b';
             ctx.setLineDash([5, 5]);
             ctx.beginPath();
             ctx.moveTo(padding.left, tolY);
-            ctx.lineTo(w - padding.right, tolY);
+            ctx.lineTo(padding.left + plotW, tolY);
             ctx.stroke();
             ctx.setLineDash([]);
 
-            ctx.fillStyle = '#ff6b6b';
-            ctx.font = '10px JetBrains Mono';
-            ctx.fillText('ε = 10⁻⁶', w - padding.right - 50, tolY - 5);
-
-            // Convergence curve
-            const xScale = plotW / Math.max(data.length, 10);
-            
+            // Total error curve
             ctx.beginPath();
             ctx.strokeStyle = '#4dabf7';
             ctx.lineWidth = 3;
-            
             data.forEach((val, i) => {
                 const x = padding.left + (i + 1) * xScale;
-                const y = padding.top + (maxLog - Math.log10(Math.max(val, 1e-12))) / (maxLog - minLog) * plotH;
-                
+                const y = padding.top + (maxLog - Math.log10(Math.max(val, 1e-15))) / (maxLog - minLog) * plotH1;
                 if (i === 0) ctx.moveTo(x, y);
                 else ctx.lineTo(x, y);
             });
             ctx.stroke();
 
-            // Points
-            ctx.fillStyle = '#4dabf7';
-            data.forEach((val, i) => {
-                const x = padding.left + (i + 1) * xScale;
-                const y = padding.top + (maxLog - Math.log10(Math.max(val, 1e-12))) / (maxLog - minLog) * plotH;
+            // P and Q error components if available
+            if (errorComponents.length > 0) {
+                // P error curve
+                ctx.beginPath();
+                ctx.strokeStyle = '#51cf66';
+                ctx.lineWidth = 2;
+                errorComponents.forEach((comp, i) => {
+                    const x = padding.left + (i + 1) * xScale;
+                    const y = padding.top + (maxLog - Math.log10(Math.max(comp.P, 1e-15))) / (maxLog - minLog) * plotH1;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+
+                // Q error curve
+                ctx.beginPath();
+                ctx.strokeStyle = '#ffa94d';
+                ctx.lineWidth = 2;
+                errorComponents.forEach((comp, i) => {
+                    const x = padding.left + (i + 1) * xScale;
+                    const y = padding.top + (maxLog - Math.log10(Math.max(comp.Q, 1e-15))) / (maxLog - minLog) * plotH1;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+            }
+
+            // Current point with enhanced info
+            if (data.length > 0) {
+                const lastIdx = data.length - 1;
+                const x = padding.left + data.length * xScale;
+                const y = padding.top + (maxLog - Math.log10(Math.max(data[lastIdx], 1e-15))) / (maxLog - minLog) * plotH1;
                 
                 ctx.beginPath();
-                ctx.arc(x, y, 5, 0, 2 * Math.PI);
+                ctx.arc(x, y, 8, 0, 2 * Math.PI);
+                ctx.fillStyle = '#4dabf7';
                 ctx.fill();
-            });
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                // Convergence rate indicator
+                if (state.convergenceRate && state.convergenceRate < 0) {
+                    const rate = Math.abs(state.convergenceRate);
+                    const rateText = rate > 1 ? '二次収束' : rate > 0.5 ? '準二次収束' : '一次収束';
+                    ctx.fillStyle = rate > 1 ? '#51cf66' : rate > 0.5 ? '#ffa94d' : '#ff6b6b';
+                    ctx.font = 'bold 10px JetBrains Mono';
+                    ctx.fillText(rateText, x + 12, y - 10);
+                    ctx.fillText(`r=${rate.toFixed(2)}`, x + 12, y + 5);
+                }
+            }
 
-            // Labels
+            // === Secondary Plot (Jacobian Det & Step Size) ===
+            const plot2Y = padding.top + plotH1 + gap;
+            
+            // Jacobian determinant plot
+            if (jacobianHist.length > 0) {
+                const logJacData = jacobianHist.map(d => Math.log10(Math.max(d, 1e-15)));
+                const jacMin = Math.min(...logJacData) - 0.5;
+                const jacMax = Math.max(...logJacData) + 0.5;
+                
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+                for (let i = 0; i <= 3; i++) {
+                    const y = plot2Y + i * plotH2 / 3;
+                    ctx.beginPath();
+                    ctx.moveTo(padding.left, y);
+                    ctx.lineTo(padding.left + plotW, y);
+                    ctx.stroke();
+                }
+                
+                ctx.beginPath();
+                ctx.strokeStyle = '#cc5de8';
+                ctx.lineWidth = 2;
+                jacobianHist.forEach((val, i) => {
+                    const x = padding.left + (i + 1) * xScale;
+                    const y = plot2Y + (jacMax - Math.log10(Math.max(val, 1e-15))) / (jacMax - jacMin) * plotH2;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+                
+                // Singularity warning line
+                const singY = plot2Y + (jacMax - Math.log10(1e-12)) / (jacMax - jacMin) * plotH2;
+                if (singY >= plot2Y && singY <= plot2Y + plotH2) {
+                    ctx.strokeStyle = '#ff6b6b';
+                    ctx.setLineDash([3, 3]);
+                    ctx.beginPath();
+                    ctx.moveTo(padding.left, singY);
+                    ctx.lineTo(padding.left + plotW, singY);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+            }
+
+            // Step size overlay
+            if (stepSizeHist.length > 0) {
+                const stepMin = Math.min(...stepSizeHist);
+                const stepMax = Math.max(...stepSizeHist);
+                if (stepMax > stepMin) {
+                    ctx.beginPath();
+                    ctx.strokeStyle = '#22b8cf';
+                    ctx.lineWidth = 1;
+                    stepSizeHist.forEach((val, i) => {
+                        const x = padding.left + (i + 1) * xScale;
+                        const y = plot2Y + plotH2 - ((val - stepMin) / (stepMax - stepMin)) * plotH2;
+                        if (i === 0) ctx.moveTo(x, y);
+                        else ctx.lineTo(x, y);
+                    });
+                    ctx.stroke();
+                }
+            }
+
+            // === Labels and Legends ===
             ctx.fillStyle = '#e9ecef';
             ctx.font = '11px JetBrains Mono';
             ctx.textAlign = 'center';
             ctx.fillText('反復回数', w / 2, h - 5);
 
-            ctx.save();
-            ctx.translate(15, h / 2);
-            ctx.rotate(-Math.PI / 2);
-            ctx.fillText('log₁₀(誤差)', 0, 0);
-            ctx.restore();
-
-            // Y-axis values
+            // Y-axis labels
             ctx.textAlign = 'right';
             for (let i = 0; i <= 4; i++) {
                 const logVal = maxLog - i * (maxLog - minLog) / 4;
-                const y = padding.top + i * plotH / 4;
+                const y = padding.top + i * plotH1 / 4;
                 ctx.fillText(logVal.toFixed(1), padding.left - 5, y + 4);
             }
+
+            // Legend
+            const legendX = w - padding.right + 10;
+            let legendY = padding.top;
+            ctx.textAlign = 'left';
+            ctx.font = '10px JetBrains Mono';
+            
+            // Error components legend
+            const legendItems = [
+                { color: '#4dabf7', label: '総誤差', width: 3 },
+                { color: '#51cf66', label: 'P誤差', width: 2 },
+                { color: '#ffa94d', label: 'Q誤差', width: 2 },
+                { color: '#ff6b6b', label: '許容値', width: 1, dash: [5,5] },
+                { color: '#cc5de8', label: 'log|det(J)|', width: 2 },
+                { color: '#22b8cf', label: 'ステップサイズ', width: 1 }
+            ];
+            
+            legendItems.forEach((item, i) => {
+                const y = legendY + i * 18;
+                ctx.strokeStyle = item.color;
+                ctx.lineWidth = item.width;
+                if (item.dash) ctx.setLineDash(item.dash);
+                
+                ctx.beginPath();
+                ctx.moveTo(legendX, y);
+                ctx.lineTo(legendX + 20, y);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                
+                ctx.fillStyle = item.color;
+                ctx.fillText(item.label, legendX + 25, y + 3);
+            });
+
+            // Current statistics
+            if (data.length > 0) {
+                const statsY = legendY + legendItems.length * 18 + 20;
+                ctx.fillStyle = '#e9ecef';
+                ctx.font = 'bold 10px JetBrains Mono';
+                ctx.fillText('現在の状態:', legendX, statsY);
+                
+                const stats = [
+                    `反復: ${state.iteration}`,
+                    `誤差: ${data[data.length-1].toExponential(2)}`,
+                    `収束: ${data[data.length-1] < state.tolerance ? '✓' : '×'}`,
+                ];
+                
+                if (state.jacobianlCondition) {
+                    stats.push(`条件数: ${state.jacobianlCondition.toExponential(1)}`);
+                }
+                if (state.currentStepSize) {
+                    stats.push(`ステップ: ${state.currentStepSize.toFixed(3)}`);
+                }
+                
+                ctx.font = '9px JetBrains Mono';
+                stats.forEach((stat, i) => {
+                    ctx.fillText(stat, legendX, statsY + 15 + i * 12);
+                });
+            }
+
+            // Axis titles
+            ctx.fillStyle = '#e9ecef';
+            ctx.font = '11px JetBrains Mono';
+            ctx.save();
+            ctx.translate(15, padding.top + plotH1 / 2);
+            ctx.rotate(-Math.PI / 2);
+            ctx.textAlign = 'center';
+            ctx.fillText('log₁₀(誤差)', 0, 0);
+            ctx.restore();
+            
+            ctx.save();
+            ctx.translate(15, plot2Y + plotH2 / 2);
+            ctx.rotate(-Math.PI / 2);
+            ctx.fillText('log₁₀|det(J)|', 0, 0);
+            ctx.restore();
         }
 
         // Resize
