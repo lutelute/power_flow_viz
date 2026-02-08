@@ -38,3 +38,11 @@ temp/
 *.njsproj
 *.sln
 *.sw?
+
+# Auto Claude data directory
+.auto-claude/
+
+# Recording scripts (dev only)
+record-demos.mjs
+package.json
+package-lock.json

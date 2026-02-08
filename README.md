@@ -2,6 +2,10 @@
 
 電力潮流計算アルゴリズムの可視化・教育プラットフォーム
 
+<p align="center">
+  <img src="assets/gifs/01_landing.gif" alt="ダッシュボード" width="700">
+</p>
+
 ## 🌐 オンライン版
 
 **GitHub Pages**: https://lutelute.github.io/power_flow_viz/
@@ -21,6 +25,85 @@
 - **段階的アルゴリズム解説**による直感的理解
 - **数学的厳密性**と教育的分かりやすさの両立
 
+## 🎬 デモ
+
+### ダッシュボード
+全ツールへのナビゲーションを提供するメインページ。カード型UIで各可視化ツールに素早くアクセス
+
+<p align="center">
+  <img src="assets/gifs/01_landing.gif" alt="ダッシュボード" width="700">
+</p>
+
+> [🚀 ダッシュボードを開く](https://lutelute.github.io/power_flow_viz/)
+
+---
+
+### MATPOWER準拠分析スイート
+8アルゴリズム統合・MATPOWER 7.1完全準拠の学術標準潮流計算分析プラットフォーム
+
+<p align="center">
+  <img src="assets/gifs/02_matpower_suite.gif" alt="MATPOWER分析スイート" width="700">
+</p>
+
+> [🚀 統合版を起動](https://lutelute.github.io/power_flow_viz/power_flow_v5.html) | [📖 詳細ドキュメント](./docs/power_flow_v5.html)
+
+---
+
+### 収束過程の直感的理解 (v6_fixed)
+複素電圧平面での収束軌跡、誤差曲面3D、ベクトル場など6種の可視化を同時表示
+
+<p align="center">
+  <img src="assets/gifs/03_convergence_viz.gif" alt="収束過程可視化" width="700">
+</p>
+
+> [🚀 起動（推奨版）](https://lutelute.github.io/power_flow_viz/power_flow_intuitive_v6_fixed.html) | [📖 詳細ドキュメント](./docs/power_flow_intuitive.md)
+
+---
+
+### 計算過程ステップ表示 (v2)
+潮流計算アルゴリズムの各計算ステップを段階的に可視化。ネットワーク図・Jacobian行列・収束曲線をリアルタイム表示
+
+<p align="center">
+  <img src="assets/gifs/04_process_viz.gif" alt="計算過程ステップ表示" width="700">
+</p>
+
+> [🚀 起動](https://lutelute.github.io/power_flow_viz/power_flow_process_visualizer_v2.html) | [📖 詳細ドキュメント](./docs/power_flow_process_visualizer.html)
+
+---
+
+### 多手法アルゴリズム可視化
+Newton-Raphson, Fast Decoupled, Gauss-Seidel等の主要アルゴリズムを同時実行・性能比較
+
+<p align="center">
+  <img src="assets/gifs/05_multi_algo.gif" alt="多手法アルゴリズム可視化" width="700">
+</p>
+
+> [🚀 起動](https://lutelute.github.io/power_flow_viz/power_flow_visualizer.html) | [📖 詳細ドキュメント](./docs/power_flow_visualizer.md)
+
+---
+
+### MATPOWER準拠実装
+MATPOWER 7.1完全互換のプロフェッショナル向け潮流計算。系統図・Jacobian行列・収束曲線を同時表示
+
+<p align="center">
+  <img src="assets/gifs/06_matpower_impl.gif" alt="MATPOWER準拠実装" width="700">
+</p>
+
+> [🚀 起動](https://lutelute.github.io/power_flow_viz/power_flow_matpower_v2.html) | [📖 詳細ドキュメント](./docs/power_flow_matpower_v2.md)
+
+---
+
+### DC潮流精度検証
+DC近似とAC厳密解の精度比較。Q/P比パラメータによる近似精度の変化を定量分析
+
+<p align="center">
+  <img src="assets/gifs/07_dc_accuracy.gif" alt="DC潮流精度検証" width="700">
+</p>
+
+> [🚀 起動](https://lutelute.github.io/power_flow_viz/dc_accuracy_analysis.html) | [📖 詳細ドキュメント](./docs/dc_accuracy_analysis.md)
+
+---
+
 ## 🎯 可視化ツール一覧
 
 | ツール名 | 主要機能 | オンライン版 | 詳細文書 |
@@ -29,8 +112,7 @@
 | **多手法可視化** | Newton-Raphson, Gauss-Seidel等 | [🚀 起動](https://lutelute.github.io/power_flow_viz/power_flow_visualizer.html) | [📖 詳細](./docs/power_flow_visualizer.md) |
 | **計算過程ステップ表示** | 5手法の段階別解説 | [🚀 起動](https://lutelute.github.io/power_flow_viz/power_flow_process_visualizer_v2.html) | [📖 詳細](./docs/power_flow_process_visualizer.html) |
 | **MATPOWER準拠実装** | Newton-Raphson, 高速分離解法 | [🚀 起動](https://lutelute.github.io/power_flow_viz/power_flow_matpower_v2.html) | [📖 詳細](./docs/power_flow_matpower_v2.md) |
-| **収束過程直感的理解** | 複素平面・誤差面可視化 | [🚀 起動](https://lutelute.github.io/power_flow_viz/power_flow_intuitive.html) | [📖 詳細](./docs/power_flow_intuitive.md) |
-| **└ v6_fixed最新版** | 完全修正・安定動作版 | [🚀 Fixed起動](https://lutelute.github.io/power_flow_viz/power_flow_intuitive_v6_fixed.html) | ✅推奨版 |
+| **収束過程直感的理解** | 複素平面・誤差面可視化 | [🚀 起動](https://lutelute.github.io/power_flow_viz/power_flow_intuitive_v6_fixed.html) | [📖 詳細](./docs/power_flow_intuitive.md) |
 | **DC潮流精度検証** | DC近似 vs AC解析 | [🚀 起動](https://lutelute.github.io/power_flow_viz/dc_accuracy_analysis.html) | [📖 詳細](./docs/dc_accuracy_analysis.md) |
 
 ## 🚀 使用方法
